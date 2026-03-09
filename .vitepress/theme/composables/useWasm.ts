@@ -1,22 +1,12 @@
-import type { GeneratedChallenge } from '../stores/challenge'
-
-export interface ChallengeMeta {
-  id: string
-  title: string
-  difficulty: string
-  tags: string[]
-  algorithm: string
-  testcase_count: number
+/** Result returned by generate_challenge WASM function (new format). */
+export interface GeneratedInputs {
+  inputs: string[]
 }
 
 type WasmMod = {
   default: () => Promise<void>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  generate_challenge: (toml: string) => any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  parse_challenge_meta: (toml: string) => any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  list_algorithms: () => any
+  generate_challenge: (params_json: string, count: number) => any
 }
 
 // Module-level cache — shared across all composable instances
@@ -51,11 +41,19 @@ export function useWasm(loaderOverride?: () => Promise<WasmMod>) {
     await wasmInitPromise
   }
 
-  async function generateChallenge(toml: string): Promise<GeneratedChallenge | null> {
+  /**
+   * Generate random input strings from a JSON params specification.
+   * @param params_json - JSON-serialised params object from frontmatter
+   * @param count - number of testcase inputs to generate
+   */
+  async function generateChallenge(
+    params_json: string,
+    count: number,
+  ): Promise<GeneratedInputs | null> {
     await loadWasm()
     if (!wasmModule) return null
     try {
-      const result = wasmModule.generate_challenge(toml)
+      const result = wasmModule.generate_challenge(params_json, count)
       return typeof result === 'object' ? result : JSON.parse(result)
     } catch (e) {
       console.error('[useWasm] generate_challenge error:', e)
@@ -63,17 +61,5 @@ export function useWasm(loaderOverride?: () => Promise<WasmMod>) {
     }
   }
 
-  async function parseChallengeMeta(toml: string): Promise<ChallengeMeta | null> {
-    await loadWasm()
-    if (!wasmModule) return null
-    try {
-      const result = wasmModule.parse_challenge_meta(toml)
-      return typeof result === 'object' ? result : JSON.parse(result)
-    } catch (e) {
-      console.error('[useWasm] parse_challenge_meta error:', e)
-      return null
-    }
-  }
-
-  return { loadWasm, generateChallenge, parseChallengeMeta }
+  return { loadWasm, generateChallenge }
 }

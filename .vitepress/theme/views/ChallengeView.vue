@@ -11,6 +11,7 @@ import CodeEditor from '../components/editor/CodeEditor.vue'
 import RunButton from '../components/editor/RunButton.vue'
 import TestResultPanel from '../components/editor/TestResultPanel.vue'
 import { useExecutorStore } from '../stores/executor'
+import type { GenerateRequest, GenerateComplete } from '../workers/pyodide.worker'
 
 const { frontmatter } = useData()
 const router = useRouter()
@@ -20,40 +21,85 @@ const { generateChallenge } = useWasm()
 const { isRunning, run, stop } = useExecutor()
 
 const code = ref('')
-const notFound = ref(false)
+const errorMessage = ref('')
 const isGenerating = ref(false)
-
-// All TOML challenge files bundled at build time (eager import)
-const tomlFiles = import.meta.glob('../challenges/*.toml', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>
 
 onMounted(async () => {
   const algorithm: string = frontmatter.value.algorithm ?? ''
+  const testcaseCount: number = frontmatter.value.testcase_count ?? 5
+  const generatorCode: string = frontmatter.value.generator ?? ''
+  const starterCode: string = frontmatter.value.starter_code ?? ''
+  const params = frontmatter.value.params ?? {}
+
   executorStore.setActiveChallenge(algorithm)
 
-  // Match TOML file by algorithm slug: caesar_encrypt → caesar-encrypt
-  const algSlug = algorithm.replace(/_/g, '-')
-  const matchKey = Object.keys(tomlFiles).find(
-    (k) => k.replace(/^.*\/\d+-/, '').replace('.toml', '') === algSlug,
-  )
-
-  if (!matchKey) {
-    notFound.value = true
+  if (!generatorCode) {
+    errorMessage.value = 'generator 程式碼未設定，請在 frontmatter 中加入 generator 欄位'
     return
   }
 
   isGenerating.value = true
-  const generated = await generateChallenge(tomlFiles[matchKey]!)
+
+  // Phase 1: WASM generates random inputs
+  const paramsJson = JSON.stringify(params)
+  const generated = await generateChallenge(paramsJson, testcaseCount)
+
+  if (!generated) {
+    isGenerating.value = false
+    errorMessage.value = 'WASM 生成失敗，請確認 params 格式正確'
+    return
+  }
+
+  // Phase 2: Pyodide Worker runs generator code to produce expected outputs
+  const testcases = await runGenerator(generatorCode, generated.inputs)
+
   isGenerating.value = false
 
-  if (generated) {
-    challengeStore.setCurrentChallenge(generated)
-    code.value = generated.starter_code
+  if (testcases === null) {
+    errorMessage.value = 'Generator 執行失敗，請確認 generator 程式碼正確'
+    return
   }
+
+  challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases })
+  code.value = starterCode
 })
+
+/**
+ * Spawn a fresh Worker, send a generate message, and await generate_complete.
+ * Returns null if the Worker failed to respond.
+ */
+function runGenerator(
+  generatorCode: string,
+  inputs: string[],
+): Promise<Array<{ input: string; expected_output: string }> | null> {
+  return new Promise((resolve) => {
+    const worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url), {
+      type: 'module',
+    })
+
+    worker.onmessage = (event: MessageEvent<GenerateComplete>) => {
+      if (event.data.type === 'generate_complete') {
+        worker.terminate()
+        // Filter out entries with errors; log them for debugging
+        const testcases = event.data.testcases.map((tc) => {
+          if (tc.error) {
+            console.error('[generator] error for input:', tc.input, tc.error)
+          }
+          return { input: tc.input, expected_output: tc.expected_output }
+        })
+        resolve(testcases)
+      }
+    }
+
+    worker.onerror = () => {
+      worker.terminate()
+      resolve(null)
+    }
+
+    const req: GenerateRequest = { type: 'generate', generatorCode, inputs }
+    worker.postMessage(req)
+  })
+}
 
 async function handleRun() {
   const challenge = challengeStore.currentChallenge
@@ -64,9 +110,9 @@ async function handleRun() {
 
 <template>
   <div class="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
-    <div v-if="notFound" class="flex items-center justify-center h-full">
+    <div v-if="errorMessage" class="flex items-center justify-center h-full">
       <div class="text-center">
-        <p class="text-xl text-red-400 mb-4">找不到此挑戰</p>
+        <p class="text-xl text-red-400 mb-4">{{ errorMessage }}</p>
         <button class="px-4 py-2 bg-gray-800 rounded hover:bg-gray-700" @click="router.go('/')">
           返回列表
         </button>
@@ -75,20 +121,19 @@ async function handleRun() {
 
     <template v-else>
       <AppHeader
-        :title="challengeStore.currentChallenge?.title ?? '載入中...'"
-        :difficulty="challengeStore.currentChallenge?.difficulty ?? ''"
+        :title="frontmatter.title ?? '載入中...'"
+        :difficulty="frontmatter.difficulty ?? ''"
       />
 
       <div class="flex-1 overflow-hidden">
         <SplitPane>
           <template #left>
-            <!-- Skeleton for ProblemPanel during generate_challenge (task 6.3) -->
             <div v-if="isGenerating" class="p-6 space-y-3">
               <div class="h-5 bg-gray-800 animate-pulse rounded w-2/3" />
               <div class="h-4 bg-gray-800 animate-pulse rounded w-full" />
               <div class="h-4 bg-gray-800 animate-pulse rounded w-4/5" />
             </div>
-            <ProblemPanel v-else :markdown="challengeStore.currentChallenge?.description ?? ''" />
+            <ProblemPanel v-else />
           </template>
 
           <template #right>

@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme'
 import { useData } from 'vitepress'
-import { computed } from 'vue'
+import ChallengeView from './views/ChallengeView.vue'
 
 const { Layout } = DefaultTheme
 const { frontmatter } = useData()
-
 </script>
 
 <template>
-  <Layout>
-  </Layout>
+  <ChallengeView v-if="frontmatter.layout === 'challenge'" />
+  <Layout v-else />
 </template>
 
 <style>

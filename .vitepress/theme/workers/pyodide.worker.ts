@@ -9,6 +9,7 @@
  *  - Execute testcases one by one, posting TestcaseResult per case (task 4.5)
  *  - Set a wall-clock setTimeout as secondary TLE guard (task 4.6)
  *  - Clear namespace between testcases (task 4.7)
+ *  - Handle GenerateRequest: run generator code per input to produce expected_output
  */
 
 import { buildWrappedCode, computeVerdict } from './worker-utils'
@@ -40,7 +41,26 @@ export interface RunComplete {
   passed: number
 }
 
-type WorkerOutMessage = TestcaseResult | RunComplete
+/** Request to run the generator script against a list of inputs. */
+export interface GenerateRequest {
+  type: 'generate'
+  generatorCode: string
+  inputs: string[]
+}
+
+export interface GenerateTestcase {
+  input: string
+  expected_output: string
+  /** Set if the generator threw an error for this input */
+  error?: string
+}
+
+export interface GenerateComplete {
+  type: 'generate_complete'
+  testcases: GenerateTestcase[]
+}
+
+type WorkerOutMessage = TestcaseResult | RunComplete | GenerateComplete
 
 const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/'
 const DEFAULT_OP_LIMIT = 10_000_000
@@ -61,12 +81,19 @@ async function ensurePyodide(): Promise<void> {
 
 // ── Message handler ────────────────────────────────────────────────────────
 
-self.onmessage = async (event: MessageEvent<RunRequest | { type: 'preload' }>) => {
+self.onmessage = async (
+  event: MessageEvent<RunRequest | GenerateRequest | { type: 'preload' }>,
+) => {
   const { type } = event.data
 
   // Preload message: warm up Pyodide in the background and stay idle.
   if (type === 'preload') {
     await ensurePyodide()
+    return
+  }
+
+  if (type === 'generate') {
+    await handleGenerate(event.data as GenerateRequest)
     return
   }
 
@@ -152,4 +179,36 @@ self.onmessage = async (event: MessageEvent<RunRequest | { type: 'preload' }>) =
     total: testcases.length,
     passed,
   } satisfies WorkerOutMessage)
+}
+
+// ── Generator handler ──────────────────────────────────────────────────────
+
+async function handleGenerate(req: GenerateRequest): Promise<void> {
+  await ensurePyodide()
+
+  const { generatorCode, inputs } = req
+  const testcases: GenerateTestcase[] = []
+
+  for (const input of inputs) {
+    // Clear namespace before each generator run
+    try {
+      pyodide.globals.clear()
+    } catch {
+      // ignore
+    }
+
+    try {
+      const wrapped = buildWrappedCode(generatorCode, input, DEFAULT_OP_LIMIT)
+      await pyodide.runPythonAsync(wrapped)
+      const expected_output: string = (pyodide.globals.get('_output') ?? '').trimEnd()
+      testcases.push({ input, expected_output })
+    } catch (err: unknown) {
+      testcases.push({ input, expected_output: '', error: String(err) })
+    }
+  }
+
+  self.postMessage({
+    type: 'generate_complete',
+    testcases,
+  } satisfies GenerateComplete)
 }

@@ -1,90 +1,62 @@
-mod algorithms;
 mod parser;
 mod rng;
-mod template;
 
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
+/// Output of `generate_challenge`: a list of random stdin input strings,
+/// one per testcase. The frontend feeds each to the Python generator to
+/// produce the corresponding expected output.
 #[derive(Serialize)]
-struct Testcase {
-    input: String,
-    expected_output: String,
+struct GeneratedInputs {
+    inputs: Vec<String>,
 }
 
-#[derive(Serialize)]
-struct GeneratedChallenge {
-    id: String,
-    title: String,
-    difficulty: String,
-    tags: Vec<String>,
-    description: String,
-    starter_code: String,
-    testcases: Vec<Testcase>,
-}
-
-/// Returns a sorted JSON array of all registered algorithm names.
+/// Generate random input strings from a JSON params specification.
+///
+/// # Arguments
+/// * `params_json` — JSON object mapping param names to ParamSpec objects,
+///   in the order they should appear as stdin lines.
+/// * `count` — number of testcase inputs to generate.
+///
+/// # Returns
+/// `{ inputs: [string, ...] }` — one input string per testcase.
 #[wasm_bindgen]
-pub fn list_algorithms() -> Result<JsValue, JsError> {
-    let names = algorithms::list_algorithm_names();
-    serde_wasm_bindgen::to_value(&names).map_err(|e| JsError::new(&e.to_string()))
-}
-
-/// Parses only the `[meta]` section of a TOML challenge template.
-/// Does not generate testcases or render description templates.
-/// Returns `{ id, title, difficulty, tags, algorithm, testcase_count }`.
-#[wasm_bindgen]
-pub fn parse_challenge_meta(toml_str: &str) -> Result<JsValue, JsError> {
-    let tmpl = parser::parse(toml_str).map_err(|e| JsError::new(&e))?;
-    serde_wasm_bindgen::to_value(&tmpl.meta).map_err(|e| JsError::new(&e.to_string()))
-}
-
-/// Main WASM entry point.
-/// Parses the TOML template, generates random parameters, runs the algorithm,
-/// and returns a JSON-serialisable GeneratedChallenge object.
-#[wasm_bindgen]
-pub fn generate_challenge(toml_str: &str) -> Result<JsValue, JsError> {
-    let tmpl = parser::parse(toml_str).map_err(|e| JsError::new(&e))?;
-
+pub fn generate_challenge(params_json: &str, count: usize) -> Result<JsValue, JsError> {
+    let params = parser::parse_params(params_json).map_err(|e| JsError::new(&e))?;
     let mut rng = SmallRng::from_entropy();
+    let inputs: Vec<String> = (0..count)
+        .map(|_| rng::generate_input(&params, &mut rng))
+        .collect();
+    let result = GeneratedInputs { inputs };
+    serde_wasm_bindgen::to_value(&result).map_err(|e| JsError::new(&e.to_string()))
+}
 
-    // Generate multiple param sets (one per testcase)
-    let count = tmpl.meta.testcase_count;
-    let mut testcases: Vec<Testcase> = Vec::with_capacity(count);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    for _ in 0..count {
-        let param_values = rng::generate_params(&tmpl.params, &mut rng);
-        let (input, expected_output) =
-            algorithms::generate_testcases(&tmpl.meta.algorithm, &param_values, 1)
-                .map_err(|e| JsError::new(&e))?
-                .into_iter()
-                .next()
-                .unwrap();
-
-        testcases.push(Testcase { input, expected_output });
+    #[test]
+    fn generate_challenge_returns_correct_count() {
+        // Test via internal logic: parse_params + generate_input
+        let json = r#"{"shift": {"type": "int", "min": 1, "max": 25}}"#;
+        let params = parser::parse_params(json).unwrap();
+        let mut rng = SmallRng::seed_from_u64(42);
+        let inputs: Vec<String> = (0..5)
+            .map(|_| rng::generate_input(&params, &mut rng))
+            .collect();
+        assert_eq!(inputs.len(), 5);
+        for input in &inputs {
+            let v: i64 = input.parse().unwrap();
+            assert!((1..=25).contains(&v));
+        }
     }
 
-    // Build template vars from the FIRST testcase for example substitution
-    let first_params = rng::generate_params(&tmpl.params, &mut rng);
-    let mut desc_vars = first_params.clone();
-    if let Some(first) = testcases.first() {
-        desc_vars.insert("example_input".to_string(), first.input.clone());
-        desc_vars.insert("example_output".to_string(), first.expected_output.clone());
+    #[test]
+    fn generate_challenge_invalid_params_json() {
+        let result = parser::parse_params("not json");
+        assert!(result.is_err());
     }
-
-    let description = template::render(&tmpl.description.text, &desc_vars);
-
-    let challenge = GeneratedChallenge {
-        id: tmpl.meta.id,
-        title: tmpl.meta.title,
-        difficulty: tmpl.meta.difficulty,
-        tags: tmpl.meta.tags,
-        description,
-        starter_code: tmpl.starter_code.python,
-        testcases,
-    };
-
-    serde_wasm_bindgen::to_value(&challenge).map_err(|e| JsError::new(&e.to_string()))
 }

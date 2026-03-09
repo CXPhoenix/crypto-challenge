@@ -1,115 +1,89 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use indexmap::IndexMap;
+use serde::Deserialize;
 
-/// Supported parameter types for randomisation
+/// Supported parameter types for randomisation.
+/// Serialised in JSON with `"type"` as a discriminant tag.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ParamSpec {
-    Int {
-        min: i64,
-        max: i64,
-    },
-    AlphaUpper {
-        min_len: usize,
-        max_len: usize,
-    },
-    AlphaLower {
-        min_len: usize,
-        max_len: usize,
-    },
-    AlphaMixed {
-        min_len: usize,
-        max_len: usize,
-    },
-    HexString {
-        min_len: usize,
-        max_len: usize,
-    },
+    Int { min: i64, max: i64 },
+    AlphaUpper { min_len: usize, max_len: usize },
+    AlphaLower { min_len: usize, max_len: usize },
+    AlphaMixed { min_len: usize, max_len: usize },
+    HexString { min_len: usize, max_len: usize },
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MetaSection {
-    pub id: String,
-    pub title: String,
-    pub difficulty: String,
-    pub tags: Vec<String>,
-    pub algorithm: String,
-    pub testcase_count: usize,
-}
+/// Ordered map of param_name → ParamSpec.
+/// `IndexMap` preserves JSON key insertion order, which determines
+/// the line order in the generated stdin input string.
+pub type Params = IndexMap<String, ParamSpec>;
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct DescriptionSection {
-    pub text: String,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct StarterCodeSection {
-    pub python: String,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct ChallengeTemplate {
-    pub meta: MetaSection,
-    #[serde(default)]
-    pub params: HashMap<String, ParamSpec>,
-    pub description: DescriptionSection,
-    pub starter_code: StarterCodeSection,
-}
-
-/// Parse a TOML string into a ChallengeTemplate.
-pub fn parse(toml_str: &str) -> Result<ChallengeTemplate, String> {
-    toml::from_str(toml_str).map_err(|e| format!("TOML parse error: {e}"))
+/// Parse a JSON params object (from VitePress frontmatter) into an ordered Params map.
+///
+/// Expected format:
+/// ```json
+/// {
+///   "plaintext": {"type": "alpha_upper", "min_len": 5, "max_len": 12},
+///   "shift":     {"type": "int", "min": 1, "max": 25}
+/// }
+/// ```
+pub fn parse_params(json_str: &str) -> Result<Params, String> {
+    serde_json::from_str(json_str).map_err(|e| format!("JSON parse error: {e}"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const SAMPLE: &str = r#"
-[meta]
-id = "caesar-encrypt"
-title = "凱薩密碼加密"
-difficulty = "easy"
-tags = ["classical"]
-algorithm = "caesar_encrypt"
-testcase_count = 3
-
-[params]
-shift = { type = "int", min = 1, max = 25 }
-plaintext = { type = "alpha_upper", min_len = 5, max_len = 10 }
-
-[description]
-text = "Encrypt {{ plaintext }} with shift {{ shift }}."
-
-[starter_code]
-python = "result = ''"
-"#;
-
     #[test]
-    fn parses_valid_toml() {
-        let tmpl = parse(SAMPLE).expect("should parse");
-        assert_eq!(tmpl.meta.id, "caesar-encrypt");
-        assert_eq!(tmpl.meta.testcase_count, 3);
-        assert_eq!(tmpl.params.len(), 2);
+    fn parses_int_param() {
+        let json = r#"{"shift": {"type": "int", "min": 1, "max": 25}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["shift"], ParamSpec::Int { min: 1, max: 25 });
     }
 
     #[test]
-    fn returns_error_on_invalid_toml() {
-        let result = parse("not valid toml {{{");
+    fn parses_alpha_upper_param() {
+        let json = r#"{"pt": {"type": "alpha_upper", "min_len": 5, "max_len": 12}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["pt"], ParamSpec::AlphaUpper { min_len: 5, max_len: 12 });
+    }
+
+    #[test]
+    fn parses_hex_string_param() {
+        let json = r#"{"k": {"type": "hex_string", "min_len": 32, "max_len": 32}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["k"], ParamSpec::HexString { min_len: 32, max_len: 32 });
+    }
+
+    #[test]
+    fn preserves_param_declaration_order() {
+        let json = r#"{"plaintext": {"type": "alpha_upper", "min_len": 5, "max_len": 12}, "shift": {"type": "int", "min": 1, "max": 25}}"#;
+        let params = parse_params(json).unwrap();
+        let keys: Vec<&str> = params.keys().map(|s| s.as_str()).collect();
+        assert_eq!(keys, vec!["plaintext", "shift"]);
+    }
+
+    #[test]
+    fn returns_error_on_invalid_json() {
+        let result = parse_params("not valid json {{{");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("JSON parse error"));
+    }
+
+    #[test]
+    fn returns_error_on_unknown_param_type() {
+        let json = r#"{"x": {"type": "unknown_type"}}"#;
+        let result = parse_params(json);
         assert!(result.is_err());
     }
 
     #[test]
-    fn parses_int_param() {
-        let tmpl = parse(SAMPLE).unwrap();
-        let shift = &tmpl.params["shift"];
-        assert_eq!(*shift, ParamSpec::Int { min: 1, max: 25 });
-    }
-
-    #[test]
-    fn parses_string_param() {
-        let tmpl = parse(SAMPLE).unwrap();
-        let pt = &tmpl.params["plaintext"];
-        assert_eq!(*pt, ParamSpec::AlphaUpper { min_len: 5, max_len: 10 });
+    fn parses_multiple_params() {
+        let json = r#"{"a": {"type": "int", "min": 1, "max": 10}, "b": {"type": "alpha_lower", "min_len": 3, "max_len": 5}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params.len(), 2);
+        assert_eq!(params["a"], ParamSpec::Int { min: 1, max: 10 });
+        assert_eq!(params["b"], ParamSpec::AlphaLower { min_len: 3, max_len: 5 });
     }
 }

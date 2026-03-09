@@ -11,13 +11,8 @@ export interface ChallengeEntry {
   toml: string
 }
 
-/** Full output produced by the WASM generate_challenge function */
+/** Full output produced after both WASM + generator phases complete */
 export interface GeneratedChallenge {
-  id: string
-  title: string
-  difficulty: string
-  tags: string[]
-  description: string
   starter_code: string
   testcases: Array<{ input: string; expected_output: string }>
 }

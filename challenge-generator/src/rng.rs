@@ -1,5 +1,5 @@
+use indexmap::IndexMap;
 use rand::Rng;
-use std::collections::HashMap;
 
 use crate::parser::ParamSpec;
 
@@ -7,19 +7,14 @@ const UPPER: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
 const HEX_CHARS: &[u8] = b"0123456789abcdef";
 
-/// Generate a concrete value for each declared parameter.
-/// Returns a map of param_name → generated_value (as String).
-pub fn generate_params<R: Rng>(
-    specs: &HashMap<String, ParamSpec>,
-    rng: &mut R,
-) -> HashMap<String, String> {
+/// Generate a single stdin input string from ordered params.
+/// Each param value occupies one line, joined with '\n' in declaration order.
+pub fn generate_input<R: Rng>(specs: &IndexMap<String, ParamSpec>, rng: &mut R) -> String {
     specs
-        .iter()
-        .map(|(name, spec)| {
-            let value = generate_one(spec, rng);
-            (name.clone(), value)
-        })
-        .collect()
+        .values()
+        .map(|spec| generate_one(spec, rng))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn generate_one<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
@@ -59,7 +54,13 @@ mod tests {
     use rand::SeedableRng;
     use rand::rngs::SmallRng;
 
-    fn seeded() -> SmallRng { SmallRng::seed_from_u64(42) }
+    fn seeded() -> SmallRng {
+        SmallRng::seed_from_u64(42)
+    }
+
+    fn make_params(pairs: &[(&str, ParamSpec)]) -> IndexMap<String, ParamSpec> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+    }
 
     #[test]
     fn int_within_range() {
@@ -94,5 +95,40 @@ mod tests {
         let v1 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
         let v2 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
         assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn generate_input_joins_in_declaration_order() {
+        // plaintext first, shift second — must appear in that order
+        let params = make_params(&[
+            ("plaintext", ParamSpec::AlphaUpper { min_len: 5, max_len: 5 }),
+            ("shift", ParamSpec::Int { min: 3, max: 3 }),
+        ]);
+        let mut rng = seeded();
+        let input = generate_input(&params, &mut rng);
+        let lines: Vec<&str> = input.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].chars().all(|c| c.is_ascii_uppercase()), "first line should be alpha_upper");
+        assert_eq!(lines[1], "3", "second line should be the fixed shift=3");
+    }
+
+    #[test]
+    fn generate_input_single_param() {
+        let params = make_params(&[("n", ParamSpec::Int { min: 42, max: 42 })]);
+        let mut rng = seeded();
+        let input = generate_input(&params, &mut rng);
+        assert_eq!(input, "42");
+    }
+
+    #[test]
+    fn generate_input_three_params_ordered() {
+        let params = make_params(&[
+            ("m", ParamSpec::Int { min: 65, max: 65 }),
+            ("e", ParamSpec::Int { min: 17, max: 17 }),
+            ("n", ParamSpec::Int { min: 3233, max: 3233 }),
+        ]);
+        let mut rng = seeded();
+        let input = generate_input(&params, &mut rng);
+        assert_eq!(input, "65\n17\n3233");
     }
 }
