@@ -200,8 +200,26 @@ async function handleGenerate(req: GenerateRequest): Promise<void> {
     try {
       const wrapped = buildWrappedCode(generatorCode, input, DEFAULT_OP_LIMIT)
       await pyodide.runPythonAsync(wrapped)
-      const expected_output: string = (pyodide.globals.get('_output') ?? '').trimEnd()
-      testcases.push({ input, expected_output })
+      const rawOutput: string = (pyodide.globals.get('_output') ?? '').trimEnd()
+
+      // Support factory format: generator outputs JSON {"input": "...", "expected_output": "..."}
+      // This allows generators to transform WASM params into a different student input format
+      // (e.g., decrypt challenges where student receives ciphertext instead of plaintext)
+      let tcInput = input
+      let tcOutput = rawOutput
+      if (rawOutput.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(rawOutput) as { input: string; expected_output: string }
+          if (typeof parsed.input === 'string' && typeof parsed.expected_output === 'string') {
+            tcInput = parsed.input
+            tcOutput = parsed.expected_output
+          }
+        } catch {
+          // Not valid JSON — treat as plain expected output
+        }
+      }
+
+      testcases.push({ input: tcInput, expected_output: tcOutput })
     } catch (err: unknown) {
       testcases.push({ input, expected_output: '', error: String(err) })
     }

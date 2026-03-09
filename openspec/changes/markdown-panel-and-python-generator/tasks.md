@@ -26,30 +26,30 @@
 
 將 15 個 `.md` 頁面更新：`layout: false` → `layout: challenge`，移除 `<ChallengeView />`，在 frontmatter 加入 `params`、`generator`、`starter_code`，在內容區加入完整描述 markdown；Challenge metadata lives entirely in frontmatter
 
-- [ ] 4.1 遷移 `caesar-encrypt.md`
-- [ ] 4.2 遷移 `caesar-decrypt.md`
-- [ ] 4.3 遷移 `vigenere-encrypt.md`
-- [ ] 4.4 遷移 `vigenere-decrypt.md`
-- [ ] 4.5 遷移 `playfair-encrypt.md`
-- [ ] 4.6 遷移 `playfair-decrypt.md`
-- [ ] 4.7 遷移 `railfence-encrypt.md`
-- [ ] 4.8 遷移 `railfence-decrypt.md`
-- [ ] 4.9 遷移 `xor-encrypt.md`
-- [ ] 4.10 遷移 `rsa-encrypt.md`
-- [ ] 4.11 遷移 `rsa-decrypt.md`
-- [ ] 4.12 遷移 `aes-ecb-encrypt.md`
-- [ ] 4.13 遷移 `aes-ecb-decrypt.md`
-- [ ] 4.14 遷移 `simple-ecb-encrypt.md`
-- [ ] 4.15 遷移 `simple-ecb-decrypt.md`
+- [x] 4.1 遷移 `caesar-encrypt.md`
+- [x] 4.2 遷移 `caesar-decrypt.md`
+- [x] 4.3 遷移 `vigenere-encrypt.md`
+- [x] 4.4 遷移 `vigenere-decrypt.md`
+- [x] 4.5 遷移 `playfair-encrypt.md`
+- [x] 4.6 遷移 `playfair-decrypt.md`
+- [x] 4.7 遷移 `railfence-encrypt.md`
+- [x] 4.8 遷移 `railfence-decrypt.md`
+- [x] 4.9 遷移 `xor-encrypt.md`
+- [x] 4.10 遷移 `rsa-encrypt.md`
+- [x] 4.11 遷移 `rsa-decrypt.md`
+- [x] 4.12 遷移 `aes-ecb-encrypt.md`
+- [x] 4.13 遷移 `aes-ecb-decrypt.md`
+- [x] 4.14 遷移 `simple-ecb-encrypt.md`
+- [x] 4.15 遷移 `simple-ecb-decrypt.md`
 
 ## 5. 刪除 TOML 檔案
 
-- [ ] 5.1 刪除 `.vitepress/theme/challenges/` 目錄下所有 15 個 `.toml` 檔案（No TOML files exist in the repository）
+- [x] 5.1 刪除 `.vitepress/theme/challenges/` 目錄下所有 15 個 `.toml` 檔案（No TOML files exist in the repository）
 
 ## 6. 測試更新
 
-- [ ] 6.1 更新 `useWasm.spec.ts`：測試新版 `generateChallenge` 接收 params JSON，回傳 `{ inputs }`
-- [ ] 6.2 更新 `challenge.store.spec.ts`：移除 `description` 欄位相關測試
-- [ ] 6.3 更新 `ProblemPanel.spec.ts`：移除 `:markdown` prop 相關測試
-- [ ] 6.4 新增 Pyodide Worker `generate` 訊息的單元測試
-- [ ] 6.5 執行 `pnpm test` 確認所有測試通過
+- [x] 6.1 更新 `useWasm.spec.ts`：測試新版 `generateChallenge` 接收 params JSON，回傳 `{ inputs }`
+- [x] 6.2 更新 `challenge.store.spec.ts`：移除 `description` 欄位相關測試
+- [x] 6.3 更新 `ProblemPanel.spec.ts`：移除 `:markdown` prop 相關測試
+- [x] 6.4 新增 Pyodide Worker `generate` 訊息的單元測試
+- [x] 6.5 執行 `pnpm test` 確認所有測試通過

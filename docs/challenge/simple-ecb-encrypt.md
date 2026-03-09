@@ -1,11 +1,71 @@
 ---
-layout: false
+layout: challenge
 id: 14
 title: Simple ECB 加密
 difficulty: medium
 tags: ["symmetric", "block-cipher", "xor", "encrypt"]
 algorithm: simple_ecb_encrypt
 testcase_count: 5
+params:
+  plaintext_hex:
+    type: hex_string
+    min_len: 16
+    max_len: 32
+  key_hex:
+    type: hex_string
+    min_len: 16
+    max_len: 16
+generator: |
+  pt_hex = input()
+  key_hex = input()
+  plaintext = bytes.fromhex(pt_hex)
+  key = bytes.fromhex(key_hex)
+  pad = 8 - (len(plaintext) % 8)
+  plaintext += bytes([pad] * pad)
+  result = b''
+  for i in range(0, len(plaintext), 8):
+      block = plaintext[i:i+8]
+      result += bytes(b ^ k for b, k in zip(block, key))
+  print(result.hex())
+starter_code: |
+  pt_hex = input()
+  key_hex = input()
+
+  plaintext = bytes.fromhex(pt_hex)
+  key = bytes.fromhex(key_hex)
+
+  # PKCS#7 填充至 8 的倍數
+  pad = 8 - (len(plaintext) % 8)
+  plaintext += bytes([pad] * pad)
+
+  # XOR each 8-byte block with key
+  result = b''
+  for i in range(0, len(plaintext), 8):
+      block = plaintext[i:i+8]
+      result += bytes(b ^ k for b, k in zip(block, key))
+
+  print(result.hex())
 ---
 
-<ChallengeView />
+## Simple ECB 加密
+
+Simple ECB 是一個教學用的自訂區塊加密：對明文每個 8 位元組區塊和 8 位元組金鑰進行 XOR。
+
+## 輸入說明
+
+```
+明文（十六進位字串，16–32 個字元 = 8–16 位元組）
+金鑰（16 個十六進位字元 = 8 位元組）
+```
+
+## 輸出說明
+
+```
+密文（十六進位字串，含 PKCS#7 填充至 8 的倍數）
+```
+
+## 說明
+
+1. 將明文 PKCS#7 填充至 8 的倍數
+2. 每個 8 位元組區塊與金鑰進行 XOR
+3. 輸出為小寫十六進位字串

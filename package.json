@@ -9,7 +9,8 @@
     "docs:preview": "vitepress preview",
     "test:unit": "vitest",
     "format": "prettier --write --experimental-cli .vitepress/",
-    "build:wasm": "wasm-pack build challenge-generator --target web --out-dir ../docs/public/wasm"
+    "build:wasm": "wasm-pack build challenge-generator --target web --out-dir ../docs/public/wasm",
+    "dev": "pnpm build:wasm && pnpm docs:dev"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.2",

@@ -7,8 +7,6 @@ export interface ChallengeEntry {
   title: string
   difficulty: 'easy' | 'medium' | 'hard' | string
   tags: string[]
-  /** Raw TOML string for this challenge */
-  toml: string
 }
 
 /** Full output produced after both WASM + generator phases complete */

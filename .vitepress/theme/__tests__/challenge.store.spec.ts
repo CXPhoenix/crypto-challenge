@@ -25,22 +25,16 @@ describe('useChallengeStore', () => {
         title: 'Caesar Encrypt',
         difficulty: 'easy',
         tags: ['classical'],
-        toml: '[meta]\nid = "caesar-encrypt"',
       },
     ])
     expect(store.challenges).toHaveLength(1)
     expect(store.challenges[0]?.id).toBe('caesar-encrypt')
   })
 
-  it('setCurrentChallenge stores the full generated challenge', () => {
+  it('setCurrentChallenge stores starter_code and testcases', () => {
     const store = useChallengeStore()
     const generated = {
-      id: 'caesar-encrypt',
-      title: 'Caesar Encrypt',
-      difficulty: 'easy',
-      tags: ['classical'],
-      description: 'Encrypt HELLO with shift 3',
-      starter_code: 'def solve():\n    pass',
+      starter_code: 'plaintext = input()\nshift = int(input())\nprint(plaintext)',
       testcases: [{ input: 'HELLO\n3', expected_output: 'KHOOR' }],
     }
     store.setCurrentChallenge(generated)
@@ -50,8 +44,8 @@ describe('useChallengeStore', () => {
   it('challengeById returns the matching challenge entry', () => {
     const store = useChallengeStore()
     store.setChallenges([
-      { id: 'caesar-encrypt', title: 'Caesar', difficulty: 'easy', tags: [], toml: '' },
-      { id: 'vigenere-encrypt', title: 'Vigenere', difficulty: 'medium', tags: [], toml: '' },
+      { id: 'caesar-encrypt', title: 'Caesar', difficulty: 'easy', tags: [] },
+      { id: 'vigenere-encrypt', title: 'Vigenere', difficulty: 'medium', tags: [] },
     ])
     expect(store.challengeById('vigenere-encrypt')?.id).toBe('vigenere-encrypt')
     expect(store.challengeById('nonexistent')).toBeUndefined()

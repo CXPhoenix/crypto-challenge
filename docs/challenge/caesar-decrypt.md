@@ -1,11 +1,64 @@
 ---
-layout: false
+layout: challenge
 id: 2
 title: 凱薩解密
 difficulty: easy
 tags: ["classical", "substitution", "decrypt"]
 algorithm: caesar_decrypt
 testcase_count: 5
+params:
+  ciphertext:
+    type: alpha_upper
+    min_len: 5
+    max_len: 12
+  shift:
+    type: int
+    min: 1
+    max: 25
+generator: |
+  ciphertext = input()
+  shift = int(input())
+  result = ""
+  for ch in ciphertext:
+      result += chr((ord(ch) - ord('A') - shift) % 26 + ord('A'))
+  print(result)
+starter_code: |
+  ciphertext = input()
+  shift = int(input())
+
+  result = ""
+  for ch in ciphertext:
+      if ch.isalpha():
+          result += chr((ord(ch) - ord('A') - shift) % 26 + ord('A'))
+      else:
+          result += ch
+
+  print(result)
 ---
 
-<ChallengeView />
+## 凱薩解密
+
+給定密文和位移量，將每個字母向左位移相同位數，還原原始明文。
+
+## 輸入說明
+
+第一行：密文（僅含大寫英文字母，長度 5–12）
+
+第二行：位移量（整數，1 ≤ shift ≤ 25）
+
+## 輸出說明
+
+輸出一行明文（大寫英文字母）。
+
+## 範例
+
+**輸入：**
+```
+KHOOR
+3
+```
+
+**輸出：**
+```
+HELLO
+```
