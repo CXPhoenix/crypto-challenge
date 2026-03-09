@@ -1,0 +1,83 @@
+[meta]
+id = "railfence-decrypt"
+title = "柵欄解密"
+difficulty = "medium"
+tags = ["transposition", "decrypt"]
+algorithm = "railfence_decrypt"
+testcase_count = 5
+
+[params]
+plaintext = { type = "alpha_upper", min_len = 8, max_len = 20 }
+rails = { type = "int", min = 2, max = 4 }
+
+[description]
+text = """
+## 柵欄解密
+
+給定密文和軌道數，計算每條軌道的長度，分割密文後按鋸齒順序重組還原明文。
+
+## 輸入說明
+
+第一行：密文（僅含大寫英文字母，長度 8–20）
+
+第二行：軌道數（整數，2 ≤ rails ≤ 4）
+
+## 輸出說明
+
+輸出一行明文（大寫英文字母）。
+
+## 範例
+
+**輸入：**
+
+```
+HOLELWRDLO
+3
+```
+
+**輸出：**
+
+```
+HELLOWORLD
+```
+"""
+
+[starter_code]
+python = """
+ciphertext = input()
+rails = int(input())
+n = len(ciphertext)
+
+# 計算每條軌道的字元索引
+pattern = []
+rail = 0
+direction = 1
+for i in range(n):
+    pattern.append(rail)
+    if rail == 0:
+        direction = 1
+    elif rail == rails - 1:
+        direction = -1
+    rail += direction
+
+# 計算每條軌道的長度
+counts = [0] * rails
+for r in pattern:
+    counts[r] += 1
+
+# 分割密文到各軌道
+idx = 0
+fence = []
+for c in counts:
+    fence.append(list(ciphertext[idx:idx+c]))
+    idx += c
+
+# 按 pattern 順序重組
+pointers = [0] * rails
+result = []
+for r in pattern:
+    result.append(fence[r][pointers[r]])
+    pointers[r] += 1
+
+print(''.join(result))
+"""

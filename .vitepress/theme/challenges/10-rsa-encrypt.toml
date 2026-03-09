@@ -1,0 +1,63 @@
+[meta]
+id = "rsa-encrypt"
+title = "RSA 加密（教學版）"
+difficulty = "hard"
+tags = ["asymmetric", "rsa", "encrypt"]
+algorithm = "rsa_encrypt"
+testcase_count = 5
+
+[params]
+message = { type = "int", min = 2, max = 100 }
+e = { type = "int", min = 17, max = 17 }
+n = { type = "int", min = 3233, max = 3233 }
+
+[description]
+text = """
+## RSA 加密（教學版）
+
+RSA 是一種非對稱加密演算法，利用大數難以分解質因數的特性保護資訊。加密公式：
+
+$$c = m^e \bmod n$$
+
+## 輸入說明
+
+第一行：明文數字 $m$（整數，2 ≤ m ≤ 100）
+
+第二行：公鑰指數 $e$（固定為 17）
+
+第三行：模數 $n$（固定為 3233，即 61 × 53）
+
+## 輸出說明
+
+輸出一行密文數字 $c$（整數）。
+
+## 範例
+
+**輸入：**
+```
+65
+17
+3233
+```
+
+**輸出：**
+```
+2790
+```
+
+## 說明
+
+$c = 65^{17} \bmod 3233 = 2790$
+
+使用 Python 內建 `pow(m, e, n)` 可高效計算模冪運算。
+"""
+
+[starter_code]
+python = """
+m = int(input())
+e = int(input())
+n = int(input())
+
+c = pow(m, e, n)
+print(c)
+"""

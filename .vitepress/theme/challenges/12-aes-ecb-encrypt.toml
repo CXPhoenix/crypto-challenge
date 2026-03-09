@@ -1,0 +1,53 @@
+[meta]
+id = "aes-ecb-encrypt"
+title = "AES-ECB 加密"
+difficulty = "hard"
+tags = ["symmetric", "aes", "block-cipher", "encrypt"]
+algorithm = "aes_ecb_encrypt"
+testcase_count = 5
+
+[params]
+plaintext_hex = { type = "hex_string", min_len = 32, max_len = 32 }
+key_hex = { type = "hex_string", min_len = 32, max_len = 32 }
+
+[description]
+text = """
+## AES-ECB 加密
+
+AES-ECB（Advanced Encryption Standard - Electronic Codebook）是一種對稱區塊加密模式，每個 16 位元組區塊獨立加密。
+
+**輸入格式：**
+```
+明文（32 個十六進位字元 = 16 位元組）
+金鑰（32 個十六進位字元 = 16 位元組）
+```
+
+**輸出格式：**
+```
+密文（十六進位字串，含 PKCS#7 填充）
+```
+
+**說明：**
+1. 將十六進位字串解碼為位元組
+2. 使用 PKCS#7 填充至 16 的倍數
+3. 進行 AES-128 ECB 加密
+4. 輸出為小寫十六進位字串
+
+**提示：** 使用 `pycryptodome` 的 `AES` 或標準庫的 `cryptography`。
+"""
+
+[starter_code]
+python = """
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+
+pt_hex = input()
+key_hex = input()
+
+plaintext = bytes.fromhex(pt_hex)
+key = bytes.fromhex(key_hex)
+
+cipher = AES.new(key, AES.MODE_ECB)
+ciphertext = cipher.encrypt(pad(plaintext, 16))
+print(ciphertext.hex())
+"""

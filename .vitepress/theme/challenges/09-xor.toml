@@ -1,0 +1,61 @@
+[meta]
+id = "xor-encrypt"
+title = "XOR 加密"
+difficulty = "easy"
+tags = ["xor", "bitwise", "encrypt"]
+algorithm = "xor_encrypt"
+testcase_count = 5
+
+[params]
+plaintext = { type = "alpha_mixed", min_len = 4, max_len = 12 }
+key = { type = "int", min = 1, max = 255 }
+
+[description]
+text = """
+## XOR 加密
+
+XOR 加密將明文每個字元的 ASCII 值與整數金鑰做 XOR 運算，並將結果轉為十六進位字串輸出。
+
+## 輸入說明
+
+第一行：明文（ASCII 可印字元，長度 4–12）
+
+第二行：金鑰（整數，1 ≤ key ≤ 255）
+
+## 輸出說明
+
+輸出一行密文（小寫十六進位字串，每個位元組對應 2 個十六進位字元）。
+
+## 範例
+
+**輸入：**
+```
+Hi
+42
+```
+
+**輸出：**
+```
+6243
+```
+
+## 說明
+
+對每個字元 $c$：加密後的位元組 = $\text{ord}(c) \oplus \text{key}$
+
+- `H`：$72 \oplus 42 = 98$ → `62`
+- `i`：$105 \oplus 42 = 67$ → `43`
+"""
+
+[starter_code]
+python = """
+plaintext = input()
+key = int(input())
+
+result = ''
+for ch in plaintext:
+    encrypted = ord(ch) ^ key
+    result += format(encrypted, '02x')
+
+print(result)
+"""

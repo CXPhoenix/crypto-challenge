@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@source '../../docs/**/*.md';
+@source '../**/*.vue';
+@source '../**/*.ts';
+
+@theme {
+  --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, 'Cascadia Code', monospace;
+}
+

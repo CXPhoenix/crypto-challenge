@@ -1,0 +1,52 @@
+[meta]
+id = "simple-ecb-decrypt"
+title = "Simple ECB 解密"
+difficulty = "medium"
+tags = ["symmetric", "block-cipher", "xor", "decrypt"]
+algorithm = "simple_ecb_decrypt"
+testcase_count = 5
+
+[params]
+plaintext_hex = { type = "hex_string", min_len = 16, max_len = 32 }
+key_hex = { type = "hex_string", min_len = 16, max_len = 16 }
+
+[description]
+text = """
+## Simple ECB 解密
+
+給定 Simple ECB 密文和金鑰，還原明文（移除 PKCS#7 填充）。
+
+**輸入格式：**
+```
+密文（十六進位字串）
+金鑰（16 個十六進位字元 = 8 位元組）
+```
+
+**輸出格式：**
+```
+明文（十六進位字串，不含填充）
+```
+
+**提示：** XOR 是自逆的：$(a \oplus k) \oplus k = a$
+"""
+
+[starter_code]
+python = """
+ct_hex = input()
+key_hex = input()
+
+ciphertext = bytes.fromhex(ct_hex)
+key = bytes.fromhex(key_hex)
+
+# XOR each 8-byte block with key (same as encrypt)
+decrypted = b''
+for i in range(0, len(ciphertext), 8):
+    block = ciphertext[i:i+8]
+    decrypted += bytes(b ^ k for b, k in zip(block, key))
+
+# 移除 PKCS#7 填充
+pad = decrypted[-1]
+decrypted = decrypted[:-pad]
+
+print(decrypted.hex())
+"""
