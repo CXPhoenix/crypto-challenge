@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useData, useRouter } from 'vitepress'
 import { useChallengeStore } from '../stores/challenge'
 import { useWasm } from '../composables/useWasm'
@@ -22,26 +22,38 @@ const { isRunning, run, stop } = useExecutor()
 const code = ref('')
 const notFound = ref(false)
 const isGenerating = ref(false)
-// const challengeId = computed(() => route.data.params as string)
 
-// onMounted(async () => {
-//   executorStore.setActiveChallenge(challengeId.value)
+// All TOML challenge files bundled at build time (eager import)
+const tomlFiles = import.meta.glob('../challenges/*.toml', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
 
-//   const entry = challengeStore.challengeById(challengeId.value)
-//   if (!entry) {
-//     notFound.value = true
-//     return
-//   }
+onMounted(async () => {
+  const algorithm: string = frontmatter.value.algorithm ?? ''
+  executorStore.setActiveChallenge(algorithm)
 
-//   isGenerating.value = true
-//   const generated = await generateChallenge(entry.toml)
-//   isGenerating.value = false
+  // Match TOML file by algorithm slug: caesar_encrypt → caesar-encrypt
+  const algSlug = algorithm.replace(/_/g, '-')
+  const matchKey = Object.keys(tomlFiles).find(
+    (k) => k.replace(/^.*\/\d+-/, '').replace('.toml', '') === algSlug,
+  )
 
-//   if (generated) {
-//     challengeStore.setCurrentChallenge(generated)
-//     code.value = generated.starter_code
-//   }
-// })
+  if (!matchKey) {
+    notFound.value = true
+    return
+  }
+
+  isGenerating.value = true
+  const generated = await generateChallenge(tomlFiles[matchKey]!)
+  isGenerating.value = false
+
+  if (generated) {
+    challengeStore.setCurrentChallenge(generated)
+    code.value = generated.starter_code
+  }
+})
 
 async function handleRun() {
   const challenge = challengeStore.currentChallenge

@@ -1,10 +1,12 @@
 import { fileURLToPath } from 'node:url'
 import { mergeConfig, defineConfig, configDefaults } from 'vitest/config'
-import viteConfig from './.vitepress/config.mjs'
+import vue from '@vitejs/plugin-vue'
+import viteConfig from './.vitepress/config.mts'
 
 export default mergeConfig(
   viteConfig.vite || {},
   defineConfig({
+    plugins: [vue()],
     test: {
       environment: 'jsdom',
       exclude: [...configDefaults.exclude, 'e2e/**'],

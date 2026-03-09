@@ -1,30 +1,22 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ProblemPanel from '../components/challenge/ProblemPanel.vue'
 
+// ProblemPanel renders VitePress <Content /> (current page markdown).
+// Mock vitepress to avoid SSR/esbuild environment issues in jsdom.
+vi.mock('vitepress', () => ({
+  Content: { template: '<div class="vp-content" />' },
+}))
+
 describe('ProblemPanel', () => {
-  it('renders markdown headings as HTML heading elements', () => {
-    const wrapper = mount(ProblemPanel, { props: { markdown: '## 測試標題' } })
-    expect(wrapper.find('h2').exists()).toBe(true)
+  it('renders the prose wrapper with correct classes', () => {
+    const wrapper = mount(ProblemPanel)
+    expect(wrapper.find('.prose').exists()).toBe(true)
+    expect(wrapper.find('.prose-invert').exists()).toBe(true)
   })
 
-  it('renders inline LaTeX wrapped in katex span', () => {
-    const wrapper = mount(ProblemPanel, {
-      props: { markdown: '公式：$c = m^e$' },
-    })
-    // KaTeX renders into .katex spans
-    expect(wrapper.html()).toContain('katex')
-  })
-
-  it('renders block LaTeX as display math', () => {
-    const wrapper = mount(ProblemPanel, {
-      props: { markdown: '$$c = m^e \\bmod n$$' },
-    })
-    expect(wrapper.html()).toContain('katex-display')
-  })
-
-  it('returns empty string when markdown prop is empty', () => {
-    const wrapper = mount(ProblemPanel, { props: { markdown: '' } })
-    expect(wrapper.find('.prose').text()).toBe('')
+  it('has overflow-auto for scrollable content', () => {
+    const wrapper = mount(ProblemPanel)
+    expect(wrapper.find('div').classes()).toContain('overflow-auto')
   })
 })

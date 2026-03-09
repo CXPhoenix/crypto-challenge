@@ -1,24 +1,22 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { createRouter, createMemoryHistory } from 'vue-router'
 import ChallengeCard from '../components/challenge/ChallengeCard.vue'
 
+vi.mock('vitepress', () => ({
+  useRouter: () => ({ go: vi.fn() }),
+}))
+
 const mockChallenge = {
-  id: 'caesar-encrypt',
+  id: 1,
   title: '凱薩加密',
+  url: '/challenge/caesar-encrypt',
   difficulty: 'easy',
   tags: ['classical'],
-  toml: '',
 }
 
 function mountCard() {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: '/', component: { template: '<div />' } }],
-  })
   return mount(ChallengeCard, {
     props: { challenge: mockChallenge },
-    global: { plugins: [router] },
   })
 }
 

@@ -15,20 +15,9 @@ export default defineConfig({
   description: '關於密碼學的程式設計挑戰',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
-    nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' },
-    ],
+    nav: [{ text: '首頁', link: '/' }],
 
-    sidebar: [
-      {
-        text: 'Examples',
-        items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' },
-        ],
-      },
-    ],
+    sidebar: [],
 
     socialLinks: [{ icon: 'github', link: 'https://github.com/vuejs/vitepress' }],
   },
@@ -36,7 +25,7 @@ export default defineConfig({
     plugins: [vueJsx(), vueDevTools(), tailwindcss(), wasm(), topLevelAwait()],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./src', import.meta.url)),
+        '@': fileURLToPath(new URL('./.vitepress/theme', import.meta.url)),
       },
     },
     server: {
