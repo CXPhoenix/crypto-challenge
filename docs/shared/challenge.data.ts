@@ -43,7 +43,7 @@ const loader: {
           testcase_count: challenge.frontmatter.testcase_count || 5,
           tags: challenge.frontmatter.tags || ['challenge'],
         }
-      })
+      }).sort((a, b) => a.id - b.id)
 
     return challenges
   },
