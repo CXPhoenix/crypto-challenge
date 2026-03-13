@@ -37,4 +37,11 @@ describe('TestResultPanel', () => {
     })
     expect(wrapper.find('table').exists()).toBe(false)
   })
+
+  it('does NOT have fixed max-h-56 class (Requirement: TestResultPanel removes fixed max-height)', () => {
+    const wrapper = mount(TestResultPanel, {
+      props: { results: [makeResult('AC')], status: 'done' },
+    })
+    expect(wrapper.find('.max-h-56').exists()).toBe(false)
+  })
 })
