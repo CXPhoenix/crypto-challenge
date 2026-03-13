@@ -13,12 +13,19 @@
 
 ## 3. TestResultPanel 可拖曳調整高度
 
-- [ ] 3.1 移除 TestResultPanel 固定 max-h-56：移除 `max-h-56` Tailwind class，改由動態 `height` style 控制（Requirement: TestResultPanel removes fixed max-height）
-- [ ] 3.2 實作拖曳 handle 與高度調整邏輯：在 `TestResultPanel` 頂部加入拖曳 handle（drag bar），使用 mousedown/mousemove/mouseup 事件計算 height 變化，最小 `80px`，最大為容器的 50%（TestResultPanel 高度改為可拖曳；Requirement: TestResultPanel height is user-adjustable via drag）
-- [ ] 3.3 使用 ResizeObserver 取得容器高度：在 `onMounted` 中用 `ResizeObserver` 觀察右側 panel 容器高度，動態計算 50% 上限，在 `onUnmounted` 中 disconnect（Requirement: TestResultPanel height is user-adjustable via drag）
-- [ ] 3.4 寫單元測試驗證 min/max 高度約束與拖曳行為
+- [x] 3.1 移除 TestResultPanel 固定 max-h-56：移除 `max-h-56` Tailwind class，改由動態 `height` style 控制（Requirement: TestResultPanel removes fixed max-height）
+- [x] 3.2 實作拖曳 handle 與高度調整邏輯：在 `TestResultPanel` 頂部加入拖曳 handle（drag bar），使用 mousedown/mousemove/mouseup 事件計算 height 變化，最小 `80px`，最大為容器的 50%（TestResultPanel 高度改為可拖曳；Requirement: TestResultPanel height is user-adjustable via drag）
+- [x] 3.3 使用 ResizeObserver 取得容器高度：在 `onMounted` 中用 `ResizeObserver` 觀察右側 panel 容器高度，動態計算 50% 上限，在 `onUnmounted` 中 disconnect（Requirement: TestResultPanel height is user-adjustable via drag）
+- [x] 3.4 寫單元測試驗證 min/max 高度約束與拖曳行為
 
 ## 4. 整合驗證
 
-- [ ] 4.1 手動測試完整流程：載入題目頁面確認 ProblemPanel 立即出現、Run 按鈕顯示 loading、生成完成後按鈕啟用、拖曳 result panel 高度正確
-- [ ] 4.2 執行所有既有測試確認無迴歸：`pnpm test`
+- [x] 4.1 手動測試完整流程：載入題目頁面確認 ProblemPanel 立即出現、Run 按鈕顯示 loading、生成完成後按鈕啟用、拖曳 result panel 高度正確
+- [x] 4.2 執行所有既有測試確認無迴歸：`pnpm test`
+
+## 5. 修正 drag handle 位置（Requirement: TestResultPanel height is user-adjustable via drag）
+
+- [ ] 5.1 將拖曳邏輯從 `TestResultPanel` 移至 `ChallengeView.vue`：bottom area（按鈕列 + TestResultPanel）作為整體設定可調整高度，drag handle 位於 `CodeEditor` 與按鈕列之間；使用 `ResizeObserver` 觀察右側 panel 容器（Requirement: TestResultPanel height is user-adjustable via drag）
+- [ ] 5.2 `TestResultPanel` 移除 drag handle、height 管理邏輯與 `ResizeObserver`，改為直接 `overflow-auto flex-1` 填滿 bottom area（Requirement: TestResultPanel removes fixed max-height）
+- [ ] 5.3 更新 `TestResultPanel.spec.ts`：移除 drag handle 與高度 clamp 測試（這些行為已移至 ChallengeView），保留 no-max-h-56 測試
+- [ ] 5.4 執行全套測試確認通過：`pnpm test`

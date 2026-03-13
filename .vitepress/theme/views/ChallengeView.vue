@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useData, useRouter } from 'vitepress'
 import { useChallengeStore } from '../stores/challenge'
 import { useWasm } from '../composables/useWasm'
@@ -22,9 +22,12 @@ const { isRunning, run, stop } = useExecutor()
 
 const code = ref('')
 const errorMessage = ref('')
-const isGenerating = ref(false)
+const isTestcaseReady = ref(false)
 
-onMounted(async () => {
+// Track the in-progress generator worker so we can terminate on unmount
+let activeWorker: Worker | null = null
+
+onMounted(() => {
   const algorithm: string = frontmatter.value.algorithm ?? ''
   const testcaseCount: number = frontmatter.value.testcase_count ?? 5
   const generatorCode: string = frontmatter.value.generator ?? ''
@@ -32,41 +35,48 @@ onMounted(async () => {
   const params = frontmatter.value.params ?? {}
 
   executorStore.setActiveChallenge(algorithm)
+  code.value = starterCode
 
   if (!generatorCode) {
     errorMessage.value = 'generator 程式碼未設定，請在 frontmatter 中加入 generator 欄位'
     return
   }
 
-  isGenerating.value = true
+  // Fire-and-forget: generate testcases in background without blocking UI
+  ;(async () => {
+    // Phase 1: WASM generates random inputs
+    const paramsJson = JSON.stringify(params)
+    const generated = await generateChallenge(paramsJson, testcaseCount)
 
-  // Phase 1: WASM generates random inputs
-  const paramsJson = JSON.stringify(params)
-  const generated = await generateChallenge(paramsJson, testcaseCount)
+    if (!generated) {
+      errorMessage.value = 'WASM 生成失敗，請確認 params 格式正確'
+      return
+    }
 
-  if (!generated) {
-    isGenerating.value = false
-    errorMessage.value = 'WASM 生成失敗，請確認 params 格式正確'
-    return
+    // Phase 2: Pyodide Worker runs generator code to produce expected outputs
+    const testcases = await runGenerator(generatorCode, generated.inputs)
+
+    if (testcases === null) {
+      errorMessage.value = 'Generator 執行失敗，請確認 generator 程式碼正確'
+      return
+    }
+
+    challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases })
+    isTestcaseReady.value = true
+  })()
+})
+
+onUnmounted(() => {
+  if (activeWorker) {
+    activeWorker.terminate()
+    activeWorker = null
   }
-
-  // Phase 2: Pyodide Worker runs generator code to produce expected outputs
-  const testcases = await runGenerator(generatorCode, generated.inputs)
-
-  isGenerating.value = false
-
-  if (testcases === null) {
-    errorMessage.value = 'Generator 執行失敗，請確認 generator 程式碼正確'
-    return
-  }
-
-  challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases })
-  code.value = starterCode
+  isTestcaseReady.value = false
 })
 
 /**
  * Spawn a fresh Worker, send a generate message, and await generate_complete.
- * Returns null if the Worker failed to respond.
+ * Returns null if the Worker failed to respond or was terminated.
  */
 function runGenerator(
   generatorCode: string,
@@ -76,9 +86,11 @@ function runGenerator(
     const worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url), {
       type: 'module',
     })
+    activeWorker = worker
 
     worker.onmessage = (event: MessageEvent<GenerateComplete>) => {
       if (event.data.type === 'generate_complete') {
+        activeWorker = null
         worker.terminate()
         // Filter out entries with errors; log them for debugging
         const testcases = event.data.testcases.map((tc) => {
@@ -92,6 +104,7 @@ function runGenerator(
     }
 
     worker.onerror = () => {
+      activeWorker = null
       worker.terminate()
       resolve(null)
     }
@@ -128,12 +141,7 @@ async function handleRun() {
       <div class="flex-1 overflow-hidden">
         <SplitPane>
           <template #left>
-            <div v-if="isGenerating" class="p-6 space-y-3">
-              <div class="h-5 bg-gray-800 animate-pulse rounded w-2/3" />
-              <div class="h-4 bg-gray-800 animate-pulse rounded w-full" />
-              <div class="h-4 bg-gray-800 animate-pulse rounded w-4/5" />
-            </div>
-            <ProblemPanel v-else />
+            <ProblemPanel />
           </template>
 
           <template #right>
@@ -144,6 +152,7 @@ async function handleRun() {
               <div class="shrink-0 border-t border-gray-800 p-3 flex items-center gap-3">
                 <RunButton
                   :is-running="isRunning"
+                  :is-ready="isTestcaseReady"
                   :progress="executorStore.results.length"
                   :total="executorStore.totalTestcases"
                   @run="handleRun"
