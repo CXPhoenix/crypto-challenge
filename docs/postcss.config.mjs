@@ -3,6 +3,6 @@ import type { Plugin } from 'postcss'
 
 export default {
   plugins: [
-    postcssIsolateStyles({ ignoreFiles: [/tailwind\.css/] }) as Plugin
+    postcssIsolateStyles({ ignoreFiles: [/tailwind\.css/] })
   ]
 }
