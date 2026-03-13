@@ -5,7 +5,7 @@ title: 凱薩加密
 difficulty: easy
 tags: ["classical", "substitution", "encrypt"]
 algorithm: caesar_encrypt
-testcase_count: 5
+testcase_count: 10
 params:
   plaintext:
     type: alpha_upper
@@ -26,15 +26,9 @@ starter_code: |
   plaintext = input()
   shift = int(input())
 
-  # 在此實作凱薩加密
+  # 在此實作凱薩密碼加密
   result = ""
-  for ch in plaintext:
-      if ch.isalpha():
-          result += chr((ord(ch) - ord('A') + shift) % 26 + ord('A'))
-      else:
-          result += ch
-
-  print(result)
+  
 ---
 
 ## 凱薩加密
@@ -60,6 +54,6 @@ HELLO
 ```
 
 **輸出：**
-```
+```plaintext
 KHOOR
 ```

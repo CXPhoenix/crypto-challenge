@@ -5,7 +5,7 @@ title: 凱薩解密
 difficulty: easy
 tags: ["classical", "substitution", "decrypt"]
 algorithm: caesar_decrypt
-testcase_count: 5
+testcase_count: 10
 params:
   ciphertext:
     type: alpha_upper
@@ -26,14 +26,9 @@ starter_code: |
   ciphertext = input()
   shift = int(input())
 
+  # 在此實作凱薩密碼解密
   result = ""
-  for ch in ciphertext:
-      if ch.isalpha():
-          result += chr((ord(ch) - ord('A') - shift) % 26 + ord('A'))
-      else:
-          result += ch
-
-  print(result)
+  
 ---
 
 ## 凱薩解密
