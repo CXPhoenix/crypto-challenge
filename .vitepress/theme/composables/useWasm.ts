@@ -20,7 +20,7 @@ let wasmInitPromise: Promise<void> | null = null
  */
 // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
 const _runtimeImport = new Function('p', 'return import(p)') as (path: string) => Promise<WasmMod>
-const _loadWasmMod: () => Promise<WasmMod> = () => _runtimeImport('/wasm/challenge_generator.js')
+const _loadWasmMod: () => Promise<WasmMod> = () => _runtimeImport('/wasm/testcase_generator.js')
 
 /**
  * Lazily loads the WASM module once and caches it.
