@@ -19,4 +19,9 @@ describe('ProblemPanel', () => {
     const wrapper = mount(ProblemPanel)
     expect(wrapper.find('div').classes()).toContain('overflow-auto')
   })
+
+  it('has vp-doc class on prose wrapper to activate VitePress code block styles (Requirement: ProblemPanel code blocks render with VitePress styles)', () => {
+    const wrapper = mount(ProblemPanel)
+    expect(wrapper.find('.vp-doc').exists()).toBe(true)
+  })
 })

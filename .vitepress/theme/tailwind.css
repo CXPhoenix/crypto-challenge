@@ -10,3 +10,8 @@
   --font-mono: 'Fira Code', ui-monospace, 'Cascadia Code', monospace;
 }
 
+.vp-doc.problem-panel h2 {
+  border-top: 0;
+  margin-top: 1rem;
+  padding-top: 0;
+}

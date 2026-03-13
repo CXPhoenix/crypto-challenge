@@ -21,7 +21,8 @@ const passedCount = computed(() => props.results.filter((r) => r.verdict === 'AC
 <template>
   <div
     v-if="props.results.length > 0 || props.status === 'running'"
-    class="border-t border-gray-800 max-h-56 overflow-auto"
+    data-testid="result-panel"
+    class="border-t border-gray-800 flex-1 overflow-auto"
   >
     <!-- Score summary when done -->
     <div
