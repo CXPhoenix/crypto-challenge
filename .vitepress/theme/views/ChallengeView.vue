@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData, useRouter } from 'vitepress'
 import { useChallengeStore } from '../stores/challenge'
 import { useWasm } from '../composables/useWasm'
@@ -27,7 +27,57 @@ const isTestcaseReady = ref(false)
 // Track the in-progress generator worker so we can terminate on unmount
 let activeWorker: Worker | null = null
 
+// ── Bottom panel resizable height ──────────────────────────────────────────
+const MIN_BOTTOM_HEIGHT = 80
+const DEFAULT_BOTTOM_HEIGHT = 224 // ≈ 14rem
+
+const bottomHeight = ref(DEFAULT_BOTTOM_HEIGHT)
+const rightContainerHeight = ref(0)
+const rightContainerRef = ref<HTMLElement | null>(null)
+
+const maxBottomHeight = computed(() =>
+  Math.max(MIN_BOTTOM_HEIGHT, rightContainerHeight.value * 0.5),
+)
+const clampedBottomHeight = computed(() =>
+  Math.min(maxBottomHeight.value, Math.max(MIN_BOTTOM_HEIGHT, bottomHeight.value)),
+)
+
+let ro: ResizeObserver | null = null
+const dragging = ref(false)
+let dragStartY = 0
+let dragStartHeight = 0
+
+function startDrag(e: MouseEvent) {
+  dragging.value = true
+  dragStartY = e.clientY
+  dragStartHeight = clampedBottomHeight.value
+  e.preventDefault()
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', stopDrag)
+}
+
+function onMouseMove(e: MouseEvent) {
+  if (!dragging.value) return
+  // Dragging up (negative delta) → increase bottom panel height
+  const delta = dragStartY - e.clientY
+  bottomHeight.value = dragStartHeight + delta
+}
+
+function stopDrag() {
+  dragging.value = false
+  bottomHeight.value = clampedBottomHeight.value
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', stopDrag)
+}
+
 onMounted(() => {
+  if (rightContainerRef.value) {
+    ro = new ResizeObserver((entries) => {
+      rightContainerHeight.value = entries[0]?.contentRect.height ?? 0
+    })
+    ro.observe(rightContainerRef.value)
+  }
+
   const algorithm: string = frontmatter.value.algorithm ?? ''
   const testcaseCount: number = frontmatter.value.testcase_count ?? 5
   const generatorCode: string = frontmatter.value.generator ?? ''
@@ -72,6 +122,10 @@ onUnmounted(() => {
     activeWorker = null
   }
   isTestcaseReady.value = false
+  ro?.disconnect()
+  ro = null
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', stopDrag)
 })
 
 /**
@@ -145,24 +199,36 @@ async function handleRun() {
           </template>
 
           <template #right>
-            <div class="flex flex-col h-full">
+            <div ref="rightContainerRef" class="flex flex-col h-full" :class="dragging ? 'select-none' : ''">
               <div class="flex-1 overflow-hidden">
                 <CodeEditor v-model="code" />
               </div>
-              <div class="shrink-0 border-t border-gray-800 p-3 flex items-center gap-3">
-                <RunButton
-                  :is-running="isRunning"
-                  :is-ready="isTestcaseReady"
-                  :progress="executorStore.results.length"
-                  :total="executorStore.totalTestcases"
-                  @run="handleRun"
-                  @stop="stop"
-                />
-                <span v-if="executorStore.status === 'done'" class="text-sm text-gray-400">
-                  得分：{{ executorStore.passed }} / {{ executorStore.total }}
-                </span>
+              <!-- Drag handle: between editor and bottom panel -->
+              <div
+                data-drag-handle
+                class="h-1.5 shrink-0 cursor-row-resize bg-gray-800 hover:bg-emerald-600/60 transition-colors"
+                @mousedown="startDrag"
+              />
+              <!-- Bottom panel: button bar + results, height controlled by drag -->
+              <div
+                class="shrink-0 flex flex-col overflow-hidden"
+                :style="{ height: `${clampedBottomHeight}px` }"
+              >
+                <div class="shrink-0 border-t border-gray-800 p-3 flex items-center gap-3">
+                  <RunButton
+                    :is-running="isRunning"
+                    :is-ready="isTestcaseReady"
+                    :progress="executorStore.results.length"
+                    :total="executorStore.totalTestcases"
+                    @run="handleRun"
+                    @stop="stop"
+                  />
+                  <span v-if="executorStore.status === 'done'" class="text-sm text-gray-400">
+                    得分：{{ executorStore.passed }} / {{ executorStore.total }}
+                  </span>
+                </div>
+                <TestResultPanel :results="executorStore.results" :status="executorStore.status" />
               </div>
-              <TestResultPanel :results="executorStore.results" :status="executorStore.status" />
             </div>
           </template>
         </SplitPane>

@@ -25,7 +25,7 @@
 
 ## 5. 修正 drag handle 位置（Requirement: TestResultPanel height is user-adjustable via drag）
 
-- [ ] 5.1 將拖曳邏輯從 `TestResultPanel` 移至 `ChallengeView.vue`：bottom area（按鈕列 + TestResultPanel）作為整體設定可調整高度，drag handle 位於 `CodeEditor` 與按鈕列之間；使用 `ResizeObserver` 觀察右側 panel 容器（Requirement: TestResultPanel height is user-adjustable via drag）
-- [ ] 5.2 `TestResultPanel` 移除 drag handle、height 管理邏輯與 `ResizeObserver`，改為直接 `overflow-auto flex-1` 填滿 bottom area（Requirement: TestResultPanel removes fixed max-height）
-- [ ] 5.3 更新 `TestResultPanel.spec.ts`：移除 drag handle 與高度 clamp 測試（這些行為已移至 ChallengeView），保留 no-max-h-56 測試
-- [ ] 5.4 執行全套測試確認通過：`pnpm test`
+- [x] 5.1 將拖曳邏輯從 `TestResultPanel` 移至 `ChallengeView.vue`：bottom area（按鈕列 + TestResultPanel）作為整體設定可調整高度，drag handle 位於 `CodeEditor` 與按鈕列之間；使用 `ResizeObserver` 觀察右側 panel 容器（Requirement: TestResultPanel height is user-adjustable via drag）
+- [x] 5.2 `TestResultPanel` 移除 drag handle、height 管理邏輯與 `ResizeObserver`，改為直接 `overflow-auto flex-1` 填滿 bottom area（Requirement: TestResultPanel removes fixed max-height）
+- [x] 5.3 更新 `TestResultPanel.spec.ts`：移除 drag handle 與高度 clamp 測試（這些行為已移至 ChallengeView），保留 no-max-h-56 測試
+- [x] 5.4 執行全套測試確認通過：`pnpm test`

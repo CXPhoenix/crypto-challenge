@@ -56,6 +56,13 @@ class MockWorker {
 }
 vi.stubGlobal('Worker', MockWorker)
 
+// --- ResizeObserver stub for jsdom ---
+vi.stubGlobal('ResizeObserver', class {
+  observe = vi.fn()
+  disconnect = vi.fn()
+  unobserve = vi.fn()
+})
+
 // --- CodeEditor stub (avoids CodeMirror DOM issues) ---
 const CodeEditorStub = { name: 'CodeEditor', template: '<div class="code-editor-stub" />' }
 
