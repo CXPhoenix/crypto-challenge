@@ -7,7 +7,7 @@
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview",
-    "test:unit": "vitest",
+    "test": "vitest",
     "format": "prettier --write --experimental-cli .vitepress/",
     "build:wasm": "wasm-pack build challenge-generator --target web --out-dir ../docs/public/wasm",
     "dev": "pnpm build:wasm && pnpm docs:dev",
