@@ -1,5 +1,5 @@
 [package]
-name = "challenge-generator"
+name = "testcase-generator"
 version = "0.1.0"
 edition = "2024"
 
