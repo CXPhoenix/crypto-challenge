@@ -1,65 +1,90 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-// Define default value if not passing in.
+// Define default values if not passing in.
 fn default_min_len() -> usize { 1 }
 fn default_max_len() -> usize { 255 }
-fn default_repeat_count() -> usize { 1 }
 fn default_min_int() -> i64 { 0 }
 fn default_max_int() -> i64 { 100 }
+fn default_count_min() -> usize { 1 }
+fn default_count_max() -> usize { 1 }
+fn default_separator() -> String { " ".to_string() }
+
+/// Count specification: how many values to generate and how to join them.
+///
+/// Serialised in JSON as an object, e.g.:
+/// ```json
+/// {"min": 2, "max": 5, "separator": ","}
+/// ```
+/// All fields are optional; omitting the whole `count` key uses the defaults.
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+pub struct CountSpec {
+    #[serde(default = "default_count_min")]
+    pub min: usize,
+    #[serde(default = "default_count_max")]
+    pub max: usize,
+    #[serde(default = "default_separator")]
+    pub separator: String,
+}
+
+impl Default for CountSpec {
+    fn default() -> Self {
+        CountSpec { min: 1, max: 1, separator: " ".to_string() }
+    }
+}
 
 /// Supported parameter types for randomisation.
 /// Serialised in JSON with `"type"` as a discriminant tag.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ParamSpec {
-    Int { 
+    Int {
         #[serde(default = "default_min_int")]
-        min: i64, 
+        min: i64,
         #[serde(default = "default_max_int")]
-        max: i64 ,
-        #[serde(default = "default_repeat_count")]
-        count: usize,
+        max: i64,
+        #[serde(default)]
+        count: CountSpec,
     },
-    AlphaUpper { 
+    AlphaUpper {
         #[serde(default = "default_min_len")]
-        min_len: usize, 
+        min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
-        #[serde(default = "default_repeat_count")]
-        count: usize,
+        #[serde(default)]
+        count: CountSpec,
     },
-    AlphaLower { 
+    AlphaLower {
         #[serde(default = "default_min_len")]
-        min_len: usize, 
+        min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
-        #[serde(default = "default_repeat_count")]
-        count: usize,
+        #[serde(default)]
+        count: CountSpec,
     },
-    AlphaMixed { 
+    AlphaMixed {
         #[serde(default = "default_min_len")]
-        min_len: usize, 
+        min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
-        #[serde(default = "default_repeat_count")]
-        count: usize,
+        #[serde(default)]
+        count: CountSpec,
     },
-    HexString { 
+    HexString {
         #[serde(default = "default_min_len")]
-        min_len: usize, 
+        min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
-        #[serde(default = "default_repeat_count")]
-        count: usize,
+        #[serde(default)]
+        count: CountSpec,
     },
-    PrintableAscii { 
+    PrintableAscii {
         #[serde(default = "default_min_len")]
-        min_len: usize, 
+        min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
-        #[serde(default = "default_repeat_count")]
-        count: usize,
+        #[serde(default)]
+        count: CountSpec,
     },
 }
 
@@ -89,21 +114,21 @@ mod tests {
     fn parses_int_param() {
         let json = r#"{"shift": {"type": "int", "min": 1, "max": 25}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["shift"], ParamSpec::Int { min: 1, max: 25, count: 1 });
+        assert_eq!(params["shift"], ParamSpec::Int { min: 1, max: 25, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_alpha_upper_param() {
         let json = r#"{"pt": {"type": "alpha_upper", "min_len": 5, "max_len": 12}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["pt"], ParamSpec::AlphaUpper { min_len: 5, max_len: 12, count: 1 });
+        assert_eq!(params["pt"], ParamSpec::AlphaUpper { min_len: 5, max_len: 12, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_hex_string_param() {
         let json = r#"{"k": {"type": "hex_string", "min_len": 32, "max_len": 32}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["k"], ParamSpec::HexString { min_len: 32, max_len: 32, count: 1 });
+        assert_eq!(params["k"], ParamSpec::HexString { min_len: 32, max_len: 32, count: CountSpec::default() });
     }
 
     #[test]
@@ -132,28 +157,33 @@ mod tests {
     fn parses_alpha_lower_param() {
         let json = r#"{"pt": {"type": "alpha_lower", "min_len": 3, "max_len": 8}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["pt"], ParamSpec::AlphaLower { min_len: 3, max_len: 8, count: 1 });
+        assert_eq!(params["pt"], ParamSpec::AlphaLower { min_len: 3, max_len: 8, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_alpha_mixed_param() {
         let json = r#"{"pt": {"type": "alpha_mixed", "min_len": 4, "max_len": 16}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["pt"], ParamSpec::AlphaMixed { min_len: 4, max_len: 16, count: 1 });
+        assert_eq!(params["pt"], ParamSpec::AlphaMixed { min_len: 4, max_len: 16, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_printable_ascii_param() {
         let json = r#"{"msg": {"type": "printable_ascii", "min_len": 10, "max_len": 20}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["msg"], ParamSpec::PrintableAscii { min_len: 10, max_len: 20, count: 1 });
+        assert_eq!(params["msg"], ParamSpec::PrintableAscii { min_len: 10, max_len: 20, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_count_field() {
-        let json = r#"{"shift": {"type": "int", "min": 1, "max": 25, "count": 3}}"#;
+        // count is now an object with min/max/separator
+        let json = r#"{"shift": {"type": "int", "min": 1, "max": 25, "count": {"min": 3, "max": 3}}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["shift"], ParamSpec::Int { min: 1, max: 25, count: 3 });
+        assert_eq!(params["shift"], ParamSpec::Int {
+            min: 1,
+            max: 25,
+            count: CountSpec { min: 3, max: 3, separator: " ".to_string() },
+        });
     }
 
     #[test]
@@ -162,7 +192,7 @@ mod tests {
         let params = parse_params(json).unwrap();
         assert_eq!(
             params["pt"],
-            ParamSpec::AlphaUpper { min_len: 5, max_len: 10, count: 1 }
+            ParamSpec::AlphaUpper { min_len: 5, max_len: 10, count: CountSpec::default() }
         );
     }
 
@@ -171,7 +201,30 @@ mod tests {
         let json = r#"{"a": {"type": "int", "min": 1, "max": 10}, "b": {"type": "alpha_lower", "min_len": 3, "max_len": 5}}"#;
         let params = parse_params(json).unwrap();
         assert_eq!(params.len(), 2);
-        assert_eq!(params["a"], ParamSpec::Int { min: 1, max: 10, count: 1 });
-        assert_eq!(params["b"], ParamSpec::AlphaLower { min_len: 3, max_len: 5, count: 1 });
+        assert_eq!(params["a"], ParamSpec::Int { min: 1, max: 10, count: CountSpec::default() });
+        assert_eq!(params["b"], ParamSpec::AlphaLower { min_len: 3, max_len: 5, count: CountSpec::default() });
+    }
+
+    #[test]
+    fn parses_count_spec_with_min_max_range() {
+        // Task 3.2: verify count: { min: 2, max: 5 } deserializes correctly
+        let json = r#"{"n": {"type": "int", "min": 1, "max": 100, "count": {"min": 2, "max": 5}}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["n"], ParamSpec::Int {
+            min: 1,
+            max: 100,
+            count: CountSpec { min: 2, max: 5, separator: " ".to_string() },
+        });
+    }
+
+    #[test]
+    fn parses_count_spec_with_custom_separator() {
+        let json = r#"{"n": {"type": "int", "min": 1, "max": 10, "count": {"min": 3, "max": 3, "separator": ","}}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["n"], ParamSpec::Int {
+            min: 1,
+            max: 10,
+            count: CountSpec { min: 3, max: 3, separator: ",".to_string() },
+        });
     }
 }
