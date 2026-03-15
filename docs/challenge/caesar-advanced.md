@@ -4,7 +4,7 @@ id: 2
 title: 凱薩密碼轉換
 difficulty: medium
 tags: ["classical", "substitution", "encrypt", "decrypt"]
-algorithm: caesar_encrypt
+algorithm: caesar_advanced_encrypt
 testcase_count: 10
 params:
   shift:

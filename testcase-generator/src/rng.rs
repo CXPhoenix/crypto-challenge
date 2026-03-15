@@ -6,7 +6,7 @@ use crate::parser::ParamSpec;
 const UPPER: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
 const HEX_CHARS: &[u8] = b"0123456789abcdef";
-const PRINTABLE_ASCII: &[u8] = b"!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+const PRINTABLE_ASCII: &[u8] = b"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
 /// Generate a single stdin input string from ordered params.
 /// Each param value occupies one line, joined with '\n' in declaration order.
