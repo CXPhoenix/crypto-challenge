@@ -8,6 +8,7 @@
  */
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import type { EditorView } from '@codemirror/view'
+import { pythonStdlibCompletions } from '../../composables/pythonCompletions'
 
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
@@ -24,15 +25,17 @@ onMounted(async () => {
   const [
     { EditorView, keymap, lineNumbers, drawSelection, dropCursor, rectangularSelection },
     { defaultKeymap, history, historyKeymap, indentWithTab },
-    { python },
+    { python, pythonLanguage },
     { oneDark },
     { EditorState },
+    { autocompletion, closeBrackets, closeBracketsKeymap, localCompletionSource },
   ] = await Promise.all([
     import('@codemirror/view'),
     import('@codemirror/commands'),
     import('@codemirror/lang-python'),
     import('@codemirror/theme-one-dark'),
     import('@codemirror/state'),
+    import('@codemirror/autocomplete'),
   ])
 
   // Re-check after the async import: the component may have unmounted.
@@ -48,8 +51,12 @@ onMounted(async () => {
         dropCursor(),
         rectangularSelection(),
         EditorState.tabSize.of(4),
-        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         python(),
+        pythonLanguage.data.of({ autocomplete: localCompletionSource }),
+        pythonLanguage.data.of({ autocomplete: pythonStdlibCompletions() }),
+        autocompletion(),
+        closeBrackets({ brackets: ['(', '[', '{'] }),
+        keymap.of([...closeBracketsKeymap, indentWithTab, ...defaultKeymap, ...historyKeymap]),
         oneDark,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
