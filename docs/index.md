@@ -4,8 +4,12 @@ layout: home
 
 hero:
   name: "Crypto Challenge"
-  text: "關於密碼學的程式設計挑戰"
-  tagline: My great project tagline
+  text: "密碼學的挑戰"
+  tagline: 用程式碼征服密碼學的世界
+  image: 
+    light: /assets/LOGO-light.svg
+    dark: /assets/LOGO-dark.svg
+    alt: LOGO
 
 ---
 

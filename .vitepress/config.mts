@@ -13,13 +13,12 @@ export default defineConfig({
 
   title: 'Crypto Challenge',
   description: '關於密碼學的程式設計挑戰',
+  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }]],
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
-    nav: [{ text: '首頁', link: '/' }],
-
+    logo: '/favicon.svg',
+    nav: [],
     sidebar: [],
-
-    socialLinks: [{ icon: 'github', link: 'https://github.com/vuejs/vitepress' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/CXPhoenix/crypto-challenge' }],
   },
   vite: {
     plugins: [vueJsx(), vueDevTools(), tailwindcss(), wasm(), topLevelAwait()],
