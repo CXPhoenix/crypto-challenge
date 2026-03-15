@@ -1,7 +1,7 @@
 ---
 layout: challenge
 id: 3
-title: 自製密碼表的凱薩密碼解碼
+title: 自製密碼表的凱薩密碼解密
 difficulty: easy
 tags: ["classical", "substitution", "decrypt", "customized table"]
 algorithm: caesar_decrypt
@@ -14,13 +14,13 @@ params:
   shift:
     type: int
     min: 1
-    max: 25
+    max: 94
 generator: |
   ciphertext = input()
   shift = int(input())
   customized_table = [alphabet for alphabet in map(lambda n: chr(n), range(0x21, 0x7F))]
   findIndex: int = lambda t: customized_table.index(t)
-  decrypt: str = lambda ct: ''.join([chr((findIndex(t) - shift + len(customized_table)) % len(customized_table)) for t in ct])
+  decrypt: str = lambda ct: ''.join([customized_table[(findIndex(t) - shift + len(customized_table)) % len(customized_table)] for t in ct])
   print(decrypt(ciphertext))
 starter_code: |
   # 測試資料產生會用的 table，勿改動
@@ -34,7 +34,7 @@ starter_code: |
   
 ---
 
-## 凱薩解密
+## 自製密碼表的凱薩密碼解密
 
 給定密文和位移量，將每個字母向左位移相同位數，還原原始明文。
 
