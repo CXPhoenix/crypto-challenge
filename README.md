@@ -1,5 +1,7 @@
 <div align="center">
 
+![Banner](./assets/banner.png)
+
 # 🔐 Cryptography Challenge
 
 **一個在瀏覽器中執行的互動式密碼學程式設計挑戰平台**
@@ -27,16 +29,18 @@ Cryptography Challenge 是一個完全運行於瀏覽器端的密碼學程式設
 ## 功能特色
 
 - **全瀏覽器執行** — 零後端依賴，Pyodide + WASM 處理所有運算
-- **15 道密碼學挑戰** — 涵蓋古典密碼與現代加密演算法
 - **即時測試驗證** — 隨機產生測試案例，每次解題結果均不同
-- **分割視窗 IDE** — 左側題目說明 / 右側 CodeMirror 6 編輯器
+- **分割視窗 IDE** — 左側題目說明 / 右側 CodeMirror 6 編輯器（含 Python autocomplete）
 - **難度分級篩選** — 簡單 / 中等 / 困難
+- **frontmatter 定義題目** — 無需修改設定檔，一個 Markdown 檔即為一道題
 
 ## 題目列表
 
 | # | 演算法 | 操作 | 難度 |
 |---|--------|------|------|
-| 1–2 | 凱薩密碼 (Caesar) | 加密 / 解密 | 🟢 簡單 |
+| 1 | 凱薩密碼 (Caesar) | 加密 | 🟢 簡單 |
+| 2 | 凱薩密碼轉換 | 加密 / 解密 | 🟡 中等 |
+| 3 | 自製密碼表的凱薩密碼 | 解密 | 🟢 簡單 |
 
 ## 技術架構
 
@@ -105,9 +109,9 @@ cryptography-challenge/
 │       ├── stores/            # Pinia stores（challenge、executor）
 │       ├── composables/       # useWasm、useExecutor
 │       ├── workers/           # Pyodide Web Worker
-│       └── __tests__/         # Vitest 測試（9 個測試檔）
+│       └── __tests__/         # Vitest 測試
 ├── docs/
-│   ├── challenge/             # 15 道題目 Markdown（含 frontmatter）
+│   ├── challenge/             # 題目 Markdown（每檔即一道題，含 frontmatter）
 │   ├── public/wasm/           # Rust/WASM 建置輸出（.gitignored）
 │   └── shared/                # VitePress data loader
 └── testcase-generator/        # Rust crate（產生隨機測試輸入）

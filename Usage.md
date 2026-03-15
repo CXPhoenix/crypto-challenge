@@ -90,6 +90,7 @@ WASM 產生的每筆測資為多行字串，每行對應一個參數，`generato
 | `alpha_lower` | 小寫英文字母（a–z） | `min_len`, `max_len` |
 | `alpha_mixed` | 大小寫混合英文字母（A–Za–z） | `min_len`, `max_len` |
 | `hex_string` | 十六進位字串（0–9a–f） | `min_len`, `max_len` |
+| `printable_ascii` | 可列印 ASCII 字元（空格至 ~） | `min_len`, `max_len` |
 
 #### 範例
 
@@ -127,6 +128,30 @@ params:
     min: 3233
     max: 3233
 ```
+
+#### count — 產生多個值
+
+所有型別都支援 `count` 欄位，用於在**同一行**產生多個值：
+
+```yaml
+params:
+  numbers:
+    type: int
+    min: 1
+    max: 100
+    count:
+      min: 3    # 最少產生 3 個
+      max: 5    # 最多產生 5 個
+      separator: " "  # 值之間的分隔符，預設為空格
+```
+
+產生的測資範例（該行包含 4 個整數）：
+
+```
+42 7 88 15
+```
+
+省略 `count` 時等同於 `count: { min: 1, max: 1 }`，即只產生一個值。
 
 ---
 
