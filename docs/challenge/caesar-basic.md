@@ -1,7 +1,7 @@
 ---
 layout: challenge
 id: 1
-title: 凱薩加密
+title: 凱薩密碼
 difficulty: easy
 tags: ["classical", "substitution", "encrypt"]
 algorithm: caesar_encrypt
@@ -10,7 +10,7 @@ params:
   plaintext:
     type: alpha_upper
     min_len: 5
-    max_len: 12
+    max_len: 24
   shift:
     type: int
     min: 1
@@ -31,13 +31,13 @@ starter_code: |
   
 ---
 
-## 凱薩加密
+## 凱薩密碼
 
 凱薩加密是一種替換加密，將每個大寫字母在字母表中向右位移固定位數，超過 Z 則循環回 A。
 
 ## 輸入說明
 
-第一行：明文（僅含大寫英文字母，長度 5–12）
+第一行：明文（僅含大寫英文字母）
 
 第二行：位移量（整數，1 ≤ shift ≤ 25）
 

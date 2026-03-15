@@ -88,6 +88,13 @@ tests:
 
 The `generate_challenge(params_json, count)` WASM function SHALL accept `params_json: &str` (JSON-serialized params object from frontmatter) and `count: usize` (number of testcases). It SHALL deserialize the params, generate `count` random input strings (one per testcase), and return an object containing only `inputs: Vec<String>`. It SHALL NOT compute `expected_output`. Param values SHALL be joined in the key order of the JSON object with newline separators to form each input string. `indexmap::IndexMap` SHALL be used to preserve key order.
 
+Each `ParamSpec` variant SHALL support an optional `count` field of type `CountSpec`. `CountSpec` SHALL be a struct with three fields:
+- `min: usize` — minimum number of values to generate (default: 1)
+- `max: usize` — maximum number of values to generate (default: 1)
+- `separator: String` — delimiter used to join multiple values on the same line (default: `" "`)
+
+The entire `count` field SHALL default to `CountSpec { min: 1, max: 1, separator: " " }` when omitted, preserving backward compatibility. For each param, the generator SHALL pick an actual count uniformly at random in `[count.min, count.max]`, generate that many values, and join them with `count.separator`.
+
 #### Scenario: generate_challenge returns inputs in param order
 
 - **WHEN** `generate_challenge` is called with params JSON `{"plaintext": {...}, "shift": {...}}`
@@ -98,67 +105,31 @@ The `generate_challenge(params_json, count)` WASM function SHALL accept `params_
 - **WHEN** `generate_challenge` is called with `count = 5`
 - **THEN** the returned `inputs` array contains exactly 5 strings
 
+#### Scenario: CountSpec with min and max generates variable number of values
+
+- **WHEN** a param is declared with `count: { min: 2, max: 5 }`
+- **THEN** the generated line for that param contains between 2 and 5 values joined by separator (inclusive)
+
+#### Scenario: CountSpec with custom separator joins values correctly
+
+- **WHEN** a param is declared with `count: { min: 3, max: 3, separator: "," }`
+- **THEN** the generated line contains exactly 3 values joined by commas with no trailing separator
+
+#### Scenario: Omitting count preserves existing behavior
+
+- **WHEN** a param is declared without a `count` field
+- **THEN** the param generates exactly 1 value with no separator (identical to previous behavior)
+
 
 <!-- @trace
-source: markdown-panel-and-python-generator
-updated: 2026-03-13
+source: flexible-count-and-separator
+updated: 2026-03-16
 code:
-  - docs/index.md
-  - .vitepress/theme/challenges/13-aes-ecb-decrypt.toml
-  - .vitepress/theme/components/challenge/ProblemPanel.vue
-  - docs/challenge/rsa-decrypt.md
-  - challenge-generator/src/algorithms/vigenere.rs
-  - .vitepress/theme/challenges/08-railfence-decrypt.toml
-  - .vitepress/theme/challenges/09-xor.toml
-  - docs/challenge/playfair-encrypt.md
-  - .vitepress/theme/challenges/01-caesar-encrypt.toml
-  - docs/challenge/xor-encrypt.md
-  - .vitepress/theme/Layout.vue
-  - challenge-generator/src/algorithms/playfair.rs
-  - .vitepress/theme/challenges/02-caesar-decrypt.toml
-  - challenge-generator/src/lib.rs
-  - .vitepress/theme/challenges/12-aes-ecb-encrypt.toml
-  - .vitepress/theme/challenges/06-playfair-decrypt.toml
-  - .vitepress/theme/challenges/14-simple-ecb-encrypt.toml
-  - challenge-generator/src/algorithms/railfence.rs
-  - challenge-generator/src/parser.rs
-  - .vitepress/theme/challenges/11-rsa-decrypt.toml
-  - docs/challenge/vigenere-decrypt.md
-  - challenge-generator/src/template.rs
-  - .vitepress/theme/challenges/15-simple-ecb-decrypt.toml
-  - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/challenges/07-railfence-encrypt.toml
-  - docs/challenge/simple-ecb-decrypt.md
-  - .vitepress/theme/challenges/10-rsa-encrypt.toml
-  - docs/challenge/playfair-decrypt.md
-  - .vitepress/theme/composables/useWasm.ts
-  - .vitepress/theme/challenges/05-playfair-encrypt.toml
-  - docs/challenge/aes-ecb-decrypt.md
-  - docs/challenge/vigenere-encrypt.md
-  - challenge-generator/Cargo.toml
-  - docs/challenge/rsa-encrypt.md
-  - challenge-generator/src/algorithms/caesar.rs
-  - docs/challenge/railfence-encrypt.md
-  - docs/challenge/caesar-encrypt.md
-  - docs/challenge/railfence-decrypt.md
-  - challenge-generator/src/algorithms/aes.rs
-  - docs/challenge/caesar-decrypt.md
-  - challenge-generator/src/algorithms/rsa.rs
-  - challenge-generator/src/algorithms/xor.rs
-  - challenge-generator/src/rng.rs
-  - docs/challenge/aes-ecb-encrypt.md
-  - .vitepress/theme/stores/challenge.ts
-  - .vitepress/theme/workers/pyodide.worker.ts
-  - docs/challenge/simple-ecb-encrypt.md
-  - package.json
-  - challenge-generator/src/algorithms/mod.rs
-  - .vitepress/theme/challenges/03-vigenere-encrypt.toml
-  - docs/shared/challenge.data.ts
-  - .vitepress/theme/challenges/04-vigenere-decrypt.toml
-tests:
-  - .vitepress/theme/__tests__/useWasm.spec.ts
-  - .vitepress/theme/__tests__/challenge.store.spec.ts
-  - .vitepress/theme/__tests__/pyodide-worker-generate.spec.ts
+  - testcase-generator/src/rng.rs
+  - docs/challenge/caesar-03.md
+  - docs/challenge/caesar-01.md
+  - testcase-generator/src/parser.rs
+  - docs/challenge/caesar-02.md
 -->
 
 ---
