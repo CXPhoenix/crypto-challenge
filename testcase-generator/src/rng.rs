@@ -6,6 +6,7 @@ use crate::parser::ParamSpec;
 const UPPER: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWER: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
 const HEX_CHARS: &[u8] = b"0123456789abcdef";
+const PRINTABLE_ASCII: &[u8] = b"!\"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
 /// Generate a single stdin input string from ordered params.
 /// Each param value occupies one line, joined with '\n' in declaration order.
@@ -43,6 +44,12 @@ fn generate_one<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
             let len = rng.gen_range(*min_len..=*max_len);
             (0..len)
                 .map(|_| HEX_CHARS[rng.gen_range(0..HEX_CHARS.len())] as char)
+                .collect()
+        }
+        ParamSpec::PrintableAscii { min_len, max_len } => {
+            let len = rng.gen_range(*min_len..=*max_len);
+            (0..len)
+                .map(|_| PRINTABLE_ASCII[rng.gen_range(0..PRINTABLE_ASCII.len())] as char)
                 .collect()
         }
     }
@@ -95,6 +102,46 @@ mod tests {
         let v1 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
         let v2 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
         assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn alpha_lower_only_lowercase() {
+        let mut rng = seeded();
+        let spec = ParamSpec::AlphaLower { min_len: 5, max_len: 10 };
+        let v = generate_one(&spec, &mut rng);
+        assert!(v.chars().all(|c| c.is_ascii_lowercase()), "expected all lowercase, got: {v}");
+        assert!((5..=10).contains(&v.len()));
+    }
+
+    #[test]
+    fn alpha_mixed_only_alpha() {
+        let mut rng = seeded();
+        let spec = ParamSpec::AlphaMixed { min_len: 20, max_len: 30 };
+        let v = generate_one(&spec, &mut rng);
+        assert!(v.chars().all(|c| c.is_ascii_alphabetic()), "expected only alpha chars, got: {v}");
+        assert!((20..=30).contains(&v.len()));
+    }
+
+    #[test]
+    fn alpha_mixed_contains_both_cases() {
+        // With a long enough string the seeded RNG should produce both cases.
+        let mut rng = seeded();
+        let spec = ParamSpec::AlphaMixed { min_len: 50, max_len: 50 };
+        let v = generate_one(&spec, &mut rng);
+        assert!(v.chars().any(|c| c.is_ascii_uppercase()), "expected at least one uppercase");
+        assert!(v.chars().any(|c| c.is_ascii_lowercase()), "expected at least one lowercase");
+    }
+
+    #[test]
+    fn printable_ascii_valid_chars() {
+        let mut rng = seeded();
+        let spec = ParamSpec::PrintableAscii { min_len: 20, max_len: 30 };
+        let v = generate_one(&spec, &mut rng);
+        assert!(
+            v.chars().all(|c| c as u8 >= 0x21 && c as u8 <= 0x7e),
+            "expected printable non-space ASCII (0x21–0x7e), got: {v}"
+        );
+        assert!((20..=30).contains(&v.len()));
     }
 
     #[test]

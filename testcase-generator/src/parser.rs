@@ -11,6 +11,7 @@ pub enum ParamSpec {
     AlphaLower { min_len: usize, max_len: usize },
     AlphaMixed { min_len: usize, max_len: usize },
     HexString { min_len: usize, max_len: usize },
+    PrintableAscii { min_len: usize, max_len: usize },
 }
 
 /// Ordered map of param_name → ParamSpec.
@@ -76,6 +77,27 @@ mod tests {
         let json = r#"{"x": {"type": "unknown_type"}}"#;
         let result = parse_params(json);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parses_alpha_lower_param() {
+        let json = r#"{"pt": {"type": "alpha_lower", "min_len": 3, "max_len": 8}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["pt"], ParamSpec::AlphaLower { min_len: 3, max_len: 8 });
+    }
+
+    #[test]
+    fn parses_alpha_mixed_param() {
+        let json = r#"{"pt": {"type": "alpha_mixed", "min_len": 4, "max_len": 16}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["pt"], ParamSpec::AlphaMixed { min_len: 4, max_len: 16 });
+    }
+
+    #[test]
+    fn parses_printable_ascii_param() {
+        let json = r#"{"msg": {"type": "printable_ascii", "min_len": 10, "max_len": 20}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["msg"], ParamSpec::PrintableAscii { min_len: 10, max_len: 20 });
     }
 
     #[test]
