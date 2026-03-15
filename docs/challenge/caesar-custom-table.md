@@ -1,6 +1,6 @@
 ---
 layout: challenge
-id: 2
+id: 3
 title: 自製密碼表的凱薩密碼
 difficulty: easy
 tags: ["classical", "substitution", "customized table"]

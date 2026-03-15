@@ -10,7 +10,7 @@ params:
   plaintext:
     type: alpha_upper
     min_len: 5
-    max_len: 12
+    max_len: 24
   shift:
     type: int
     min: 1
@@ -37,7 +37,7 @@ starter_code: |
 
 ## 輸入說明
 
-第一行：明文（僅含大寫英文字母，長度 5–12）
+第一行：明文（僅含大寫英文字母）
 
 第二行：位移量（整數，1 ≤ shift ≤ 25）
 

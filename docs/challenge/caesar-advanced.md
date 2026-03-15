@@ -1,9 +1,9 @@
 ---
 layout: challenge
-id: 1
+id: 2
 title: 凱薩密碼轉換
 difficulty: medium
-tags: ["classical", "substitution", "encrypt"]
+tags: ["classical", "substitution", "encrypt", "decrypt"]
 algorithm: caesar_encrypt
 testcase_count: 10
 params:
@@ -45,7 +45,7 @@ starter_code: |
 
 ## 凱薩密碼轉換
 
-在密碼學的範例中，我們習慣將明文用英文字母小寫表示，而密文則是英文字母大寫表示。
+在許多密碼學的課本範例中，會習慣將明文用英文字母小寫表示，而密文則是英文字母大寫表示。
 
 今天你將按照這個邏輯來進行程式設計。
 
@@ -68,11 +68,13 @@ starter_code: |
 
 **輸入：**
 ```plaintext
-HELLO
 3
+how are you
+L DP ILQH WKDQN BRX
 ```
 
 **輸出：**
 ```plaintext
-KHOOR
+KRZ DUH BRX
+i am fine thank you
 ```
