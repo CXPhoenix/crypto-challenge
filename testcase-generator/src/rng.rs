@@ -19,34 +19,53 @@ pub fn generate_input<R: Rng>(specs: &IndexMap<String, ParamSpec>, rng: &mut R) 
 }
 
 fn generate_one<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
+    // 從 enum 中取出對應的 count
+    let count = match spec {
+        ParamSpec::Int { count, .. } => *count,
+        ParamSpec::AlphaUpper { count, .. } => *count,
+        ParamSpec::AlphaLower { count, .. } => *count,
+        ParamSpec::AlphaMixed { count, .. } => *count,
+        ParamSpec::HexString { count, .. } => *count,
+        ParamSpec::PrintableAscii { count, .. } => *count,
+    };
+
+    // 直接使用 count 即可
+    (0..count)
+        .map(|_| generate_single(spec, rng))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// 產生單一值的邏輯 (原本 generate_one 的內容)
+fn generate_single<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
     match spec {
-        ParamSpec::Int { min, max } => rng.gen_range(*min..=*max).to_string(),
-        ParamSpec::AlphaUpper { min_len, max_len } => {
+        ParamSpec::Int { min, max, .. } => rng.gen_range(*min..=*max).to_string(),
+        ParamSpec::AlphaUpper { min_len, max_len, .. } => {
             let len = rng.gen_range(*min_len..=*max_len);
             (0..len)
                 .map(|_| UPPER[rng.gen_range(0..UPPER.len())] as char)
                 .collect()
         }
-        ParamSpec::AlphaLower { min_len, max_len } => {
+        ParamSpec::AlphaLower { min_len, max_len, .. } => {
             let len = rng.gen_range(*min_len..=*max_len);
             (0..len)
                 .map(|_| LOWER[rng.gen_range(0..LOWER.len())] as char)
                 .collect()
         }
-        ParamSpec::AlphaMixed { min_len, max_len } => {
+        ParamSpec::AlphaMixed { min_len, max_len, .. } => {
             let combined: Vec<u8> = UPPER.iter().chain(LOWER.iter()).copied().collect();
             let len = rng.gen_range(*min_len..=*max_len);
             (0..len)
                 .map(|_| combined[rng.gen_range(0..combined.len())] as char)
                 .collect()
         }
-        ParamSpec::HexString { min_len, max_len } => {
+        ParamSpec::HexString { min_len, max_len, .. } => {
             let len = rng.gen_range(*min_len..=*max_len);
             (0..len)
                 .map(|_| HEX_CHARS[rng.gen_range(0..HEX_CHARS.len())] as char)
                 .collect()
         }
-        ParamSpec::PrintableAscii { min_len, max_len } => {
+        ParamSpec::PrintableAscii { min_len, max_len, .. } => {
             let len = rng.gen_range(*min_len..=*max_len);
             (0..len)
                 .map(|_| PRINTABLE_ASCII[rng.gen_range(0..PRINTABLE_ASCII.len())] as char)
@@ -72,7 +91,7 @@ mod tests {
     #[test]
     fn int_within_range() {
         let mut rng = seeded();
-        let spec = ParamSpec::Int { min: 1, max: 25 };
+        let spec = ParamSpec::Int { min: 1, max: 25, count: 1 };
         for _ in 0..100 {
             let v: i64 = generate_one(&spec, &mut rng).parse().unwrap();
             assert!((1..=25).contains(&v));
@@ -82,7 +101,7 @@ mod tests {
     #[test]
     fn alpha_upper_only_uppercase() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaUpper { min_len: 5, max_len: 10 };
+        let spec = ParamSpec::AlphaUpper { min_len: 5, max_len: 10, count: 1 };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_uppercase()));
         assert!((5..=10).contains(&v.len()));
@@ -91,14 +110,14 @@ mod tests {
     #[test]
     fn hex_string_valid_chars() {
         let mut rng = seeded();
-        let spec = ParamSpec::HexString { min_len: 4, max_len: 8 };
+        let spec = ParamSpec::HexString { min_len: 4, max_len: 8, count: 1 };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
     fn deterministic_with_seed() {
-        let spec = ParamSpec::Int { min: 0, max: 1000 };
+        let spec = ParamSpec::Int { min: 0, max: 1000, count: 1 };
         let v1 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
         let v2 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
         assert_eq!(v1, v2);
@@ -107,7 +126,7 @@ mod tests {
     #[test]
     fn alpha_lower_only_lowercase() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaLower { min_len: 5, max_len: 10 };
+        let spec = ParamSpec::AlphaLower { min_len: 5, max_len: 10, count: 1 };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_lowercase()), "expected all lowercase, got: {v}");
         assert!((5..=10).contains(&v.len()));
@@ -116,7 +135,7 @@ mod tests {
     #[test]
     fn alpha_mixed_only_alpha() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaMixed { min_len: 20, max_len: 30 };
+        let spec = ParamSpec::AlphaMixed { min_len: 20, max_len: 30, count: 1 };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_alphabetic()), "expected only alpha chars, got: {v}");
         assert!((20..=30).contains(&v.len()));
@@ -126,7 +145,7 @@ mod tests {
     fn alpha_mixed_contains_both_cases() {
         // With a long enough string the seeded RNG should produce both cases.
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaMixed { min_len: 50, max_len: 50 };
+        let spec = ParamSpec::AlphaMixed { min_len: 50, max_len: 50, count: 1 };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().any(|c| c.is_ascii_uppercase()), "expected at least one uppercase");
         assert!(v.chars().any(|c| c.is_ascii_lowercase()), "expected at least one lowercase");
@@ -135,7 +154,7 @@ mod tests {
     #[test]
     fn printable_ascii_valid_chars() {
         let mut rng = seeded();
-        let spec = ParamSpec::PrintableAscii { min_len: 20, max_len: 30 };
+        let spec = ParamSpec::PrintableAscii { min_len: 20, max_len: 30, count: 1 };
         let v = generate_one(&spec, &mut rng);
         assert!(
             v.chars().all(|c| c as u8 >= 0x21 && c as u8 <= 0x7e),
@@ -145,11 +164,32 @@ mod tests {
     }
 
     #[test]
+    fn count_greater_than_one_produces_space_separated_values() {
+        let mut rng = seeded();
+        let spec = ParamSpec::Int { min: 1, max: 100, count: 3 };
+        let v = generate_one(&spec, &mut rng);
+        let parts: Vec<&str> = v.split(' ').collect();
+        assert_eq!(parts.len(), 3, "expected 3 space-separated values, got: {v}");
+        for part in parts {
+            let n: i64 = part.parse().expect("each part should be a valid integer");
+            assert!((1..=100).contains(&n));
+        }
+    }
+
+    #[test]
+    fn count_one_produces_no_spaces_for_int() {
+        let mut rng = seeded();
+        let spec = ParamSpec::Int { min: 0, max: 1000, count: 1 };
+        let v = generate_one(&spec, &mut rng);
+        assert!(!v.contains(' '), "count=1 should produce a single value with no spaces, got: {v}");
+    }
+
+    #[test]
     fn generate_input_joins_in_declaration_order() {
         // plaintext first, shift second — must appear in that order
         let params = make_params(&[
-            ("plaintext", ParamSpec::AlphaUpper { min_len: 5, max_len: 5 }),
-            ("shift", ParamSpec::Int { min: 3, max: 3 }),
+            ("plaintext", ParamSpec::AlphaUpper { min_len: 5, max_len: 5, count: 1 }),
+            ("shift", ParamSpec::Int { min: 3, max: 3, count: 1 }),
         ]);
         let mut rng = seeded();
         let input = generate_input(&params, &mut rng);
@@ -161,7 +201,7 @@ mod tests {
 
     #[test]
     fn generate_input_single_param() {
-        let params = make_params(&[("n", ParamSpec::Int { min: 42, max: 42 })]);
+        let params = make_params(&[("n", ParamSpec::Int { min: 42, max: 42, count: 1 })]);
         let mut rng = seeded();
         let input = generate_input(&params, &mut rng);
         assert_eq!(input, "42");
@@ -170,12 +210,20 @@ mod tests {
     #[test]
     fn generate_input_three_params_ordered() {
         let params = make_params(&[
-            ("m", ParamSpec::Int { min: 65, max: 65 }),
-            ("e", ParamSpec::Int { min: 17, max: 17 }),
-            ("n", ParamSpec::Int { min: 3233, max: 3233 }),
+            ("m", ParamSpec::Int { min: 65, max: 65, count: 1 }),
+            ("e", ParamSpec::Int { min: 17, max: 17, count: 1 }),
+            ("n", ParamSpec::Int { min: 3233, max: 3233, count: 1 }),
         ]);
         let mut rng = seeded();
         let input = generate_input(&params, &mut rng);
         assert_eq!(input, "65\n17\n3233");
+    }
+
+    #[test]
+    fn test_multiple_count_space_separated() {
+        let mut rng = seeded();
+        let spec = ParamSpec::Int { min: 5, max: 5, count: 4 };
+        let v = generate_one(&spec, &mut rng);
+        assert_eq!(v, "5 5 5 5");
     }
 }
