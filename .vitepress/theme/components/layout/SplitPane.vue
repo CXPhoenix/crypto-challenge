@@ -58,12 +58,12 @@ onUnmounted(() => {
       <!-- Divider line -->
       <div
         class="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px transition-colors"
-        :class="dragging ? 'bg-emerald-500' : 'bg-gray-700 group-hover:bg-gray-500'"
+        :class="dragging ? 'bg-blue-400 dark:bg-emerald-500' : 'bg-slate-300 group-hover:bg-slate-400 dark:bg-gray-700 dark:group-hover:bg-gray-500'"
       />
 
       <!-- Collapse/expand chevron — sits on the divider, never overlaps panels -->
       <button
-        class="relative z-10 flex items-center justify-center w-5 h-10 mx-auto rounded bg-gray-800 border border-gray-700 text-gray-400 hover:text-emerald-400 hover:border-emerald-600 hover:bg-gray-750 transition-all shadow-sm"
+        class="relative z-10 flex items-center justify-center w-5 h-10 mx-auto rounded bg-slate-100 border border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-400 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 dark:hover:text-emerald-400 dark:hover:border-emerald-600 transition-all shadow-sm"
         :aria-label="leftVisible ? '收合左側面板' : '展開左側面板'"
         @click.stop="leftVisible = !leftVisible"
         @mousedown.stop

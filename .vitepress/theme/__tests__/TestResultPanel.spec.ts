@@ -38,6 +38,22 @@ describe('TestResultPanel', () => {
     expect(wrapper.find('table').exists()).toBe(false)
   })
 
+  it('has light mode base border class (Requirement: TestResultPanel and RunButton apply dual-theme styles)', () => {
+    const wrapper = mount(TestResultPanel, {
+      props: { results: [makeResult('AC')], status: 'done' },
+    })
+    const root = wrapper.find('[data-testid="result-panel"]')
+    expect(root.classes()).toContain('border-slate-200')
+  })
+
+  it('has dark mode border class', () => {
+    const wrapper = mount(TestResultPanel, {
+      props: { results: [makeResult('AC')], status: 'done' },
+    })
+    const root = wrapper.find('[data-testid="result-panel"]')
+    expect(root.classes()).toContain('dark:border-gray-800')
+  })
+
   it('does NOT have fixed max-h-56 class (Requirement: TestResultPanel removes fixed max-height)', () => {
     const wrapper = mount(TestResultPanel, {
       props: { results: [makeResult('AC')], status: 'done' },

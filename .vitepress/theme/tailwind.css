@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+/* Use VitePress's .dark class (not prefers-color-scheme) for dark mode */
+@variant dark (&:where(.dark, .dark *));
+
 @source '../../docs/**/*.md';
 @source '../**/*.vue';
 @source '../**/*.ts';

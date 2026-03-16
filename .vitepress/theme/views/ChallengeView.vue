@@ -176,11 +176,11 @@ async function handleRun() {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
+  <div class="h-screen flex flex-col bg-slate-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 overflow-hidden">
     <div v-if="errorMessage" class="flex items-center justify-center h-full">
       <div class="text-center">
-        <p class="text-xl text-red-400 mb-4">{{ errorMessage }}</p>
-        <button class="px-4 py-2 bg-gray-800 rounded hover:bg-gray-700" @click="router.go('/')">
+        <p class="text-xl text-red-500 dark:text-red-400 mb-4">{{ errorMessage }}</p>
+        <button class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded" @click="router.go('/')">
           返回列表
         </button>
       </div>
@@ -206,7 +206,7 @@ async function handleRun() {
               <!-- Drag handle: between editor and bottom panel -->
               <div
                 data-drag-handle
-                class="h-1.5 shrink-0 cursor-row-resize bg-gray-800 hover:bg-emerald-600/60 transition-colors"
+                class="h-1.5 shrink-0 cursor-row-resize bg-slate-200 hover:bg-blue-400/60 dark:bg-gray-800 dark:hover:bg-emerald-600/60 transition-colors"
                 @mousedown="startDrag"
               />
               <!-- Bottom panel: button bar + results, height controlled by drag -->
@@ -214,7 +214,7 @@ async function handleRun() {
                 class="shrink-0 flex flex-col overflow-hidden"
                 :style="{ height: `${clampedBottomHeight}px` }"
               >
-                <div class="shrink-0 border-t border-gray-800 p-3 flex items-center gap-3">
+                <div class="shrink-0 border-t border-slate-200 dark:border-gray-800 p-3 flex items-center gap-3">
                   <RunButton
                     :is-running="isRunning"
                     :is-ready="isTestcaseReady"
@@ -223,7 +223,7 @@ async function handleRun() {
                     @run="handleRun"
                     @stop="stop"
                   />
-                  <span v-if="executorStore.status === 'done'" class="text-sm text-gray-400">
+                  <span v-if="executorStore.status === 'done'" class="text-sm text-slate-500 dark:text-gray-400">
                     得分：{{ executorStore.passed }} / {{ executorStore.total }}
                   </span>
                 </div>

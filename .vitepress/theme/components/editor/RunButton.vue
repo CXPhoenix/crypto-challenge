@@ -17,7 +17,7 @@ const emit = defineEmits<{
   <button
     v-if="!props.isReady && !props.isRunning"
     disabled
-    class="px-4 py-1.5 bg-gray-700 text-gray-400 rounded font-medium text-sm flex items-center gap-1.5 cursor-not-allowed"
+    class="px-4 py-1.5 bg-slate-100 text-slate-400 dark:bg-gray-700 dark:text-gray-400 rounded font-medium text-sm flex items-center gap-1.5 cursor-not-allowed"
   >
     <!-- Spinner -->
     <svg
@@ -52,7 +52,7 @@ const emit = defineEmits<{
   <!-- Running: stop button -->
   <button
     v-else
-    class="px-4 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded font-medium text-sm transition-colors cursor-pointer flex items-center gap-2"
+    class="px-4 py-1.5 bg-red-600 hover:bg-red-500 dark:bg-red-700 dark:hover:bg-red-600 text-white rounded font-medium text-sm transition-colors cursor-pointer flex items-center gap-2"
     @click="emit('stop')"
   >
     <!-- Heroicons: stop -->

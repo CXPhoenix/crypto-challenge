@@ -37,8 +37,8 @@ const SKELETON_COUNT = 6
           class="px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
           :class="
             selectedDifficulty === d
-              ? 'bg-emerald-500 text-white'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              ? 'bg-blue-600 text-white dark:bg-emerald-500 dark:text-white dark:shadow-[0_0_10px_rgba(16,185,129,0.4)]'
+              : 'bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 dark:bg-gray-800 dark:text-gray-300 dark:border-0 dark:hover:bg-gray-700'
           "
           @click="selectedDifficulty = d"
         >
@@ -54,7 +54,7 @@ const SKELETON_COUNT = 6
         <ChallengeCard v-for="challenge in filtered" :key="challenge.id" :challenge="challenge" />
       </div>
 
-      <p v-else class="text-gray-500 text-center py-16">沒有符合條件的挑戰。</p>
+      <p v-else class="text-slate-400 dark:text-gray-500 text-center py-16">沒有符合條件的挑戰。</p>
     </main>
   </div>
 </template>
