@@ -54,6 +54,13 @@ describe('RunButton', () => {
     expect(btn.text()).toContain('執行')
   })
 
+  it('loading state has light mode base bg-slate-100 (Requirement: TestResultPanel and RunButton apply dual-theme styles)', () => {
+    const wrapper = mount(RunButton, {
+      props: { isRunning: false, isReady: false, progress: 0, total: 0 },
+    })
+    expect(wrapper.find('button').classes()).toContain('bg-slate-100')
+  })
+
   it('does not emit run when isReady is false and clicked', async () => {
     const wrapper = mount(RunButton, {
       props: { isRunning: false, isReady: false, progress: 0, total: 0 },

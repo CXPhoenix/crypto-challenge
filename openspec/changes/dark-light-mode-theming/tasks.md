@@ -16,33 +16,33 @@
 
 ## 4. ChallengeListView 雙主題
 
-- [ ] 4.1 將 `ChallengeListView.vue` 篩選按鈕的 active/inactive class 改為雙主題版本（ChallengeListView filter buttons apply dual-theme styles）：dark active 用 emerald + glow，light active 用 `bg-blue-600`
-- [ ] 4.2 將 `ChallengeListView.vue` 的背景與空白訊息文字色改為雙主題
+- [x] 4.1 將 `ChallengeListView.vue` 篩選按鈕的 active/inactive class 改為雙主題版本（ChallengeListView filter buttons apply dual-theme styles）：dark active 用 emerald + glow，light active 用 `bg-blue-600`
+- [x] 4.2 將 `ChallengeListView.vue` 的背景與空白訊息文字色改為雙主題
 
 ## 5. ChallengeView 雙主題
 
-- [ ] 5.1 將 `ChallengeView.vue` 根容器的 `bg-gray-950` 改為 light mode 使用 `bg-slate-50`，dark mode 使用 `dark:bg-gray-950`（ChallengeView root container applies dual-theme background）
-- [ ] 5.2 更新 `ChallengeView.vue` 中拖曳 handle、按鈕列 border 等細節 class 為雙主題
+- [x] 5.1 將 `ChallengeView.vue` 根容器的 `bg-gray-950` 改為 light mode 使用 `bg-slate-50`，dark mode 使用 `dark:bg-gray-950`（ChallengeView root container applies dual-theme background）
+- [x] 5.2 更新 `ChallengeView.vue` 中拖曳 handle、按鈕列 border 等細節 class 為雙主題
 
 ## 6. ProblemPanel 雙主題
 
-- [ ] 6.1 將 `ProblemPanel.vue` 的 `prose-invert` 改為條件式（ProblemPanel 的 prose 模式條件化）：dark mode 套用 `prose-invert`，light mode 使用標準 `prose`（ProblemPanel prose mode adapts to theme）
+- [x] 6.1 將 `ProblemPanel.vue` 的 `prose-invert` 改為條件式（ProblemPanel 的 prose 模式條件化）：dark mode 套用 `prose-invert`，light mode 使用標準 `prose`（ProblemPanel prose mode adapts to theme）
 
 ## 7. TestResultPanel 雙主題
 
-- [ ] 7.1 將 `TestResultPanel.vue` 所有硬編碼深色 class 加入 light mode 基礎樣式與 `dark:` 前綴（TestResultPanel and RunButton apply dual-theme styles — TestResultPanel 部分）：表格、邊框、文字色
+- [x] 7.1 將 `TestResultPanel.vue` 所有硬編碼深色 class 加入 light mode 基礎樣式與 `dark:` 前綴（TestResultPanel and RunButton apply dual-theme styles — TestResultPanel 部分）：表格、邊框、文字色
 
 ## 8. RunButton 雙主題
 
-- [ ] 8.1 將 `RunButton.vue` 的 disabled/ready/running 三種狀態按鈕加入 light mode 樣式（TestResultPanel and RunButton apply dual-theme styles — RunButton 部分），確保 light mode 下按鈕對比度足夠
+- [x] 8.1 將 `RunButton.vue` 的 disabled/ready/running 三種狀態按鈕加入 light mode 樣式（TestResultPanel and RunButton apply dual-theme styles — RunButton 部分），確保 light mode 下按鈕對比度足夠
 
 ## 9. SplitPane 與 SkeletonChallengeCard 雙主題
 
-- [ ] 9.1 更新 `SplitPane.vue` 拖曳分隔線的顏色為雙主題
-- [ ] 9.2 更新 `SkeletonChallengeCard.vue` skeleton 色塊為雙主題（light mode 使用較淺的灰藍色）
+- [x] 9.1 更新 `SplitPane.vue` 拖曳分隔線的顏色為雙主題
+- [x] 9.2 更新 `SkeletonChallengeCard.vue` skeleton 色塊為雙主題（light mode 使用較淺的灰藍色）
 
 ## 10. 驗證
 
-- [ ] 10.1 確認使用 `useData().isDark` 進行 dark/light 切換可正確同步（AppHeader provides a dark/light mode toggle 驗證）
-- [ ] 10.2 在 light mode 下瀏覽列表頁與做題頁，確認所有元件顯示符合 SOC/SIEM 設計（AppHeader applies dual-theme styles、ChallengeCard applies dual-theme styles 驗證）
-- [ ] 10.3 在 dark mode 下確認 emerald hover glow 效果正常顯示（Tailwind dark variant targets VitePress dark class 驗證）
+- [x] 10.1 確認使用 `useData().isDark` 進行 dark/light 切換可正確同步（AppHeader provides a dark/light mode toggle 驗證）
+- [x] 10.2 在 light mode 下瀏覽列表頁與做題頁，確認所有元件顯示符合 SOC/SIEM 設計（AppHeader applies dual-theme styles、ChallengeCard applies dual-theme styles 驗證）
+- [x] 10.3 在 dark mode 下確認 emerald hover glow 效果正常顯示（Tailwind dark variant targets VitePress dark class 驗證）

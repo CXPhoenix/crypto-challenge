@@ -9,10 +9,13 @@ vi.mock('vitepress', () => ({
 }))
 
 describe('ProblemPanel', () => {
-  it('renders the prose wrapper with correct classes', () => {
+  it('renders the prose wrapper with correct classes (Requirement: ProblemPanel prose mode adapts to theme)', () => {
     const wrapper = mount(ProblemPanel)
     expect(wrapper.find('.prose').exists()).toBe(true)
-    expect(wrapper.find('.prose-invert').exists()).toBe(true)
+    // prose-invert is applied via dark: prefix, not unconditionally
+    const proseEl = wrapper.find('.prose')
+    expect(proseEl.classes()).toContain('dark:prose-invert')
+    expect(proseEl.classes()).not.toContain('prose-invert')
   })
 
   it('has overflow-auto for scrollable content', () => {
