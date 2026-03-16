@@ -71,3 +71,6 @@ challenge-generator/target
 # Cypress
 /cypress/videos/
 /cypress/screenshots/
+
+# Superpowers
+.superpowers
