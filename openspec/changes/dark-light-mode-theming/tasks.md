@@ -1,18 +1,18 @@
 ## 1. 設定 Tailwind Dark Variant
 
-- [ ] 1.1 在 `tailwind.css` 加入 `@variant dark (&:where(.dark, .dark *));`（使用 `@variant dark` 設定 Tailwind dark mode variant）：使 Tailwind dark variant targets VitePress dark class，讓所有 `dark:` prefix 對應 `.dark` class 而非 media query
+- [x] 1.1 在 `tailwind.css` 加入 `@variant dark (&:where(.dark, .dark *));`（使用 `@variant dark` 設定 Tailwind dark mode variant）：使 Tailwind dark variant targets VitePress dark class，讓所有 `dark:` prefix 對應 `.dark` class 而非 media query
 
 ## 2. AppHeader 切換按鈕與雙主題
 
-- [ ] 2.1 在 `AppHeader.vue` 引入 `useData` 取得 `isDark` ref，實作切換函式（AppHeader provides a dark/light mode toggle）；設計決策：AppHeader 使用 VitePress `useData().isDark` 切換，直接設定 `isDark.value` 以同步 VitePress 狀態與 localStorage
-- [ ] 2.2 在 `AppHeader.vue` 新增 sun/moon icon 切換按鈕，根據 `isDark` 狀態顯示對應圖示
-- [ ] 2.3 為 `AppHeader.vue` 加入 light mode 基礎樣式（AppHeader applies dual-theme styles）：light mode 使用深海軍藍背景（`bg-blue-900`），dark mode 使用 `dark:bg-transparent dark:border-gray-800`
+- [x] 2.1 在 `AppHeader.vue` 引入 `useData` 取得 `isDark` ref，實作切換函式（AppHeader provides a dark/light mode toggle）；設計決策：AppHeader 使用 VitePress `useData().isDark` 切換，直接設定 `isDark.value` 以同步 VitePress 狀態與 localStorage
+- [x] 2.2 在 `AppHeader.vue` 新增 sun/moon icon 切換按鈕，根據 `isDark` 狀態顯示對應圖示
+- [x] 2.3 為 `AppHeader.vue` 加入 light mode 基礎樣式（AppHeader applies dual-theme styles）：light mode 使用深海軍藍背景（`bg-blue-900`），dark mode 使用 `dark:bg-transparent dark:border-gray-800`
 
 ## 3. ChallengeCard 雙主題
 
-- [ ] 3.1 將 `ChallengeCard.vue` 的深色硬編碼 class 改為 light mode 基礎 + `dark:` 前綴（ChallengeCard applies dual-theme styles）：卡片背景、邊框色
-- [ ] 3.2 為 `ChallengeCard.vue` 加入 dark mode hover 霓虹光暈效果（`dark:hover:shadow-[0_0_14px_rgba(52,211,153,0.25)]`）和 light mode hover 藍色陰影
-- [ ] 3.3 更新 `ChallengeCard.vue` 的 `difficultyClass` 映射，實作難度 badge 的雙主題色（difficulty badge colors adapt to theme）：dark 用暗色半透明，light 用亮色飽和
+- [x] 3.1 將 `ChallengeCard.vue` 的深色硬編碼 class 改為 light mode 基礎 + `dark:` 前綴（ChallengeCard applies dual-theme styles）：卡片背景、邊框色
+- [x] 3.2 為 `ChallengeCard.vue` 加入 dark mode hover 霓虹光暈效果（`dark:hover:shadow-[0_0_14px_rgba(52,211,153,0.25)]`）和 light mode hover 藍色陰影
+- [x] 3.3 更新 `ChallengeCard.vue` 的 `difficultyClass` 映射，實作難度 badge 的雙主題色（difficulty badge colors adapt to theme）：dark 用暗色半透明，light 用亮色飽和
 
 ## 4. ChallengeListView 雙主題
 
