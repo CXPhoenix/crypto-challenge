@@ -32,6 +32,7 @@ export function buildWrappedCode(
 
   return `
 import sys
+import sys as _sys
 import io
 
 # ── op-count TLE guard ────────────────────────────────────────────
@@ -46,6 +47,22 @@ def _tracer(frame, event, arg):
     return _tracer
 
 sys.settrace(_tracer)
+
+# ── sandbox guard ─────────────────────────────────────────────────
+class _SandboxFinder:
+    def find_module(self, fullname, path=None):
+        if fullname in ('js', 'pyodide_js', 'pyodide') or \
+           fullname.startswith(('js.', 'pyodide_js.', 'pyodide.')):
+            return self
+        return None
+    def load_module(self, fullname):
+        raise ImportError(f"Module '{fullname}' is not available")
+
+_sys.meta_path.insert(0, _SandboxFinder())
+for _n in list(_sys.modules):
+    if _n in ('js', 'pyodide_js', 'pyodide') or \
+       _n.startswith(('js.', 'pyodide_js.', 'pyodide.')):
+        del _sys.modules[_n]
 
 # ── stdin / stdout redirect ───────────────────────────────────────
 sys.stdin = io.StringIO("""${escapedInput}""")

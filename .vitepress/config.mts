@@ -13,7 +13,17 @@ export default defineConfig({
 
   title: 'Crypto Challenge',
   description: '關於密碼學的程式設計挑戰',
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    [
+      'meta',
+      {
+        'http-equiv': 'Content-Security-Policy',
+        content:
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; connect-src 'self'; img-src 'self' data:; font-src 'self';",
+      },
+    ],
+  ],
   themeConfig: {
     logo: '/favicon.svg',
     nav: [],

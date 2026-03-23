@@ -62,7 +62,7 @@ export interface GenerateComplete {
 
 type WorkerOutMessage = TestcaseResult | RunComplete | GenerateComplete
 
-const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/'
+const PYODIDE_CDN = '/pyodide/'
 const DEFAULT_OP_LIMIT = 10_000_000
 /** Wall-clock budget per testcase in milliseconds (task 4.6) */
 const WALL_CLOCK_MS = 5_000
