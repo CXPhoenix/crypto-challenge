@@ -10,8 +10,9 @@
     "test": "vitest",
     "format": "prettier --write --experimental-cli .vitepress/",
     "build:wasm": "wasm-pack build testcase-generator --target web --out-dir ../docs/public/wasm",
-    "dev": "pnpm build:wasm && pnpm docs:dev",
-    "build": "pnpm build:wasm && pnpm docs:build"
+    "build:pyodide": "bash scripts/download-pyodide.sh",
+    "dev": "pnpm build:wasm && pnpm build:pyodide && pnpm docs:dev",
+    "build": "pnpm build:wasm && pnpm build:pyodide && pnpm docs:build"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
