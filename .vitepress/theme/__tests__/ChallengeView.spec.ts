@@ -40,6 +40,7 @@ vi.mock('../composables/useExecutor', () => ({
     isRunning: ref(false),
     run: vi.fn(),
     stop: vi.fn(),
+    execute: vi.fn().mockResolvedValue({ type: 'execute_result', stdout: '', elapsed_ms: 0 }),
   }),
 }))
 
@@ -105,6 +106,42 @@ describe('ChallengeView', () => {
     const runButton = wrapper.findComponent({ name: 'RunButton' })
     expect(runButton.exists()).toBe(true)
     expect(runButton.props('isReady')).toBe(false)
+  })
+
+  it('shows both Run and Submit buttons (Requirement: Button Layout Split)', async () => {
+    const wrapper = mount(ChallengeView, {
+      global: {
+        stubs: { CodeEditor: CodeEditorStub, Teleport: true },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    // Run button (always enabled)
+    const runBtn = wrapper.find('[data-testid="run-btn"]')
+    expect(runBtn.exists()).toBe(true)
+    expect(runBtn.text()).toContain('執行')
+    expect(runBtn.attributes('disabled')).toBeUndefined()
+
+    // Submit button (RunButton component, disabled before testcases ready)
+    const submitBtn = wrapper.findComponent({ name: 'RunButton' })
+    expect(submitBtn.exists()).toBe(true)
+    expect(submitBtn.props('isReady')).toBe(false)
+  })
+
+  it('Run button is clickable before testcases are ready', async () => {
+    const wrapper = mount(ChallengeView, {
+      global: {
+        stubs: { CodeEditor: CodeEditorStub, Teleport: true },
+      },
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const runBtn = wrapper.find('[data-testid="run-btn"]')
+    expect(runBtn.attributes('disabled')).toBeUndefined()
+    // Click should not throw
+    await runBtn.trigger('click')
   })
 
   it('Worker is terminated on unmount (Requirement: Worker is terminated on component unmount)', async () => {

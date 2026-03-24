@@ -60,7 +60,24 @@ export interface GenerateComplete {
   testcases: GenerateTestcase[]
 }
 
-type WorkerOutMessage = TestcaseResult | RunComplete | GenerateComplete
+/** Request to execute code with stdin, returning raw stdout (no verdict comparison). */
+export interface ExecuteRequest {
+  type: 'execute'
+  code: string
+  stdin: string
+  /** Maximum Python bytecode operations. Default: 10_000_000 */
+  opLimit?: number
+}
+
+export interface ExecuteResult {
+  type: 'execute_result'
+  stdout: string
+  elapsed_ms: number
+  /** Set if execution failed (runtime error or TLE) */
+  error?: string
+}
+
+type WorkerOutMessage = TestcaseResult | RunComplete | GenerateComplete | ExecuteResult
 
 const PYODIDE_CDN = '/pyodide/'
 const DEFAULT_OP_LIMIT = 10_000_000
@@ -82,7 +99,7 @@ async function ensurePyodide(): Promise<void> {
 // ── Message handler ────────────────────────────────────────────────────────
 
 self.onmessage = async (
-  event: MessageEvent<RunRequest | GenerateRequest | { type: 'preload' }>,
+  event: MessageEvent<RunRequest | ExecuteRequest | GenerateRequest | { type: 'preload' }>,
 ) => {
   const { type } = event.data
 
@@ -94,6 +111,11 @@ self.onmessage = async (
 
   if (type === 'generate') {
     await handleGenerate(event.data as GenerateRequest)
+    return
+  }
+
+  if (type === 'execute') {
+    await handleExecute(event.data as ExecuteRequest)
     return
   }
 
@@ -179,6 +201,45 @@ self.onmessage = async (
     total: testcases.length,
     passed,
   } satisfies WorkerOutMessage)
+}
+
+// ── Execute handler (pure execution, no verdict) ─────────────────────────
+
+async function handleExecute(req: ExecuteRequest): Promise<void> {
+  const { code, stdin, opLimit = DEFAULT_OP_LIMIT } = req
+
+  await ensurePyodide()
+
+  const startTime = performance.now()
+
+  // Namespace cleanup
+  try {
+    pyodide.globals.clear()
+  } catch {
+    // ignore
+  }
+
+  try {
+    const wrapped = buildWrappedCode(code, stdin, opLimit)
+    await pyodide.runPythonAsync(wrapped)
+
+    const stdout: string = pyodide.globals.get('_output') ?? ''
+
+    self.postMessage({
+      type: 'execute_result',
+      stdout,
+      elapsed_ms: performance.now() - startTime,
+    } satisfies ExecuteResult)
+  } catch (err: unknown) {
+    const errMsg = String(err)
+
+    self.postMessage({
+      type: 'execute_result',
+      stdout: '',
+      elapsed_ms: performance.now() - startTime,
+      error: errMsg,
+    } satisfies ExecuteResult)
+  }
 }
 
 // ── Generator handler ──────────────────────────────────────────────────────

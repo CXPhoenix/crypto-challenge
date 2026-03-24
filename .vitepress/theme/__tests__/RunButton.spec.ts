@@ -45,13 +45,13 @@ describe('RunButton', () => {
     expect(btn.text()).toContain('生成中')
   })
 
-  it('is enabled and shows run icon when isReady is true', () => {
+  it('is enabled and shows submit text when isReady is true', () => {
     const wrapper = mount(RunButton, {
       props: { isRunning: false, isReady: true, progress: 0, total: 5 },
     })
     const btn = wrapper.find('button')
     expect(btn.attributes('disabled')).toBeUndefined()
-    expect(btn.text()).toContain('執行')
+    expect(btn.text()).toContain('提交')
   })
 
   it('loading state has light mode base bg-slate-100 (Requirement: TestResultPanel and RunButton apply dual-theme styles)', () => {
