@@ -54,6 +54,24 @@ tests:
   - .vitepress/theme/__tests__/worker-utils.spec.ts
 -->
 
+### Requirement: script-src does not include unsafe-eval
+
+The CSP `script-src` directive SHALL NOT include `'unsafe-eval'`. All JavaScript modules SHALL load via standard `import()` expressions, not via `new Function()` or `eval()`.
+
+#### Scenario: No eval-based dynamic imports in production bundle
+
+- **WHEN** the application is built and deployed
+- **THEN** no JavaScript module SHALL use `new Function()` or `eval()` for dynamic imports
+- **AND** the CSP `script-src` directive SHALL remain `'self' 'unsafe-inline' 'wasm-unsafe-eval'` without `'unsafe-eval'`
+
+
+<!-- @trace
+source: fix-csp-eval-error
+updated: 2026-03-24
+code:
+  - .vitepress/theme/composables/useWasm.ts
+-->
+
 ### Requirement: CSP restricts worker sources
 
 The `worker-src` directive SHALL be set to `'self' blob:`, allowing only same-origin workers and blob URL workers.
@@ -113,7 +131,6 @@ The `default-src` directive SHALL be set to `'self'`. The `img-src` directive SH
 - **THEN** only same-origin resources SHALL be permitted
 
 ## Requirements
-
 
 <!-- @trace
 source: frontend-security-hardening
@@ -190,3 +207,14 @@ The `default-src` directive SHALL be set to `'self'`. The `img-src` directive SH
 
 - **WHEN** the page attempts to load any resource type not explicitly covered by other directives
 - **THEN** only same-origin resources SHALL be permitted
+
+---
+### Requirement: script-src does not include unsafe-eval
+
+The CSP `script-src` directive SHALL NOT include `'unsafe-eval'`. All JavaScript modules SHALL load via standard `import()` expressions, not via `new Function()` or `eval()`.
+
+#### Scenario: No eval-based dynamic imports in production bundle
+
+- **WHEN** the application is built and deployed
+- **THEN** no JavaScript module SHALL use `new Function()` or `eval()` for dynamic imports
+- **AND** the CSP `script-src` directive SHALL remain `'self' 'unsafe-inline' 'wasm-unsafe-eval'` without `'unsafe-eval'`
