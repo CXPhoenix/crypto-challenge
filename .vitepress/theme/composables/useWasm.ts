@@ -13,14 +13,10 @@ type WasmMod = {
 let wasmModule: WasmMod | null = null
 let wasmInitPromise: Promise<void> | null = null
 
-/**
- * Dynamic import helper that is invisible to Vite's static analyser.
- * Using `new Function` prevents Vite from resolving the path to /public at
- * build/transform time, while still executing a real dynamic import at runtime.
- */
-// eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-const _runtimeImport = new Function('p', 'return import(p)') as (path: string) => Promise<WasmMod>
-const _loadWasmMod: () => Promise<WasmMod> = () => _runtimeImport('/wasm/testcase_generator.js')
+/** Dynamic import using template literal so Vite cannot statically resolve the path. */
+const WASM_MOD_PATH = '/wasm/testcase_generator.js'
+const _loadWasmMod: () => Promise<WasmMod> = () =>
+  import(/* @vite-ignore */ `${WASM_MOD_PATH}`)
 
 /**
  * Lazily loads the WASM module once and caches it.
