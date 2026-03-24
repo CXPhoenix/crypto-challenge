@@ -42,11 +42,11 @@ const emit = defineEmits<{
     class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-medium text-sm transition-colors cursor-pointer flex items-center gap-1.5"
     @click="emit('run')"
   >
-    <!-- Heroicons: play -->
+    <!-- Heroicons: paper-airplane (submit) -->
     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-      <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
+      <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
     </svg>
-    執行
+    提交
   </button>
 
   <!-- Running: stop button -->

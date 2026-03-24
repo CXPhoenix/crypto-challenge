@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { TestcaseResult } from '../../workers/pyodide.worker'
+import type { TestcaseResult, VerdictDetail } from '../../workers/pyodide.worker'
 import type { ExecutorStatus } from '../../stores/executor'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   results: TestcaseResult[]
   status: ExecutorStatus
-}>()
+  verdictDetail?: VerdictDetail
+}>(), {
+  verdictDetail: 'hidden',
+})
 
 const verdictStyle: Record<string, string> = {
   AC: 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
@@ -92,8 +95,11 @@ const passedCount = computed(() => props.results.filter((r) => r.verdict === 'AC
           </td>
           <td class="px-2 py-1.5 text-slate-400 dark:text-gray-500">{{ result.elapsed_ms.toFixed(0) }} ms</td>
           <td class="px-2 py-1.5 text-slate-500 dark:text-gray-400 font-mono truncate max-w-xs">
-            <template v-if="result.verdict === 'WA'">
+            <template v-if="result.verdict === 'WA' && props.verdictDetail === 'full'">
               預期 <span class="text-green-600 dark:text-green-400">{{ result.expected }}</span>，
+              實際 <span class="text-red-500 dark:text-red-400">{{ result.actual }}</span>
+            </template>
+            <template v-else-if="result.verdict === 'WA' && props.verdictDetail === 'actual'">
               實際 <span class="text-red-500 dark:text-red-400">{{ result.actual }}</span>
             </template>
             <template v-else-if="result.verdict === 'RE'">

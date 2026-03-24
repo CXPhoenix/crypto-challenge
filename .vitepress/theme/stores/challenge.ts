@@ -12,7 +12,7 @@ export interface ChallengeEntry {
 /** Full output produced after both WASM + generator phases complete */
 export interface GeneratedChallenge {
   starter_code: string
-  testcases: Array<{ input: string; expected_output: string }>
+  testcases: Array<{ input: string; expected_output?: string }>
 }
 
 export const useChallengeStore = defineStore('challenge', () => {

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useExecutorStore } from '../stores/executor'
-import type { RunRequest, TestcaseResult, RunComplete } from '../workers/pyodide.worker'
+import type { RunRequest, TestcaseResult, RunComplete, ExecuteRequest, ExecuteResult, VerdictDetail } from '../workers/pyodide.worker'
 
 const WALL_CLOCK_KILL_MS = 6_000
 
@@ -41,6 +41,7 @@ export function useExecutor() {
   async function run(
     code: string,
     testcases: Array<{ input: string; expected_output: string }>,
+    verdictDetail: VerdictDetail = 'hidden',
   ): Promise<void> {
     if (store.status === 'running') stop()
 
@@ -80,9 +81,55 @@ export function useExecutor() {
       type: 'run',
       code,
       testcases: testcases.map((tc) => ({ input: tc.input, expected_output: tc.expected_output })),
+      verdictDetail,
     }
     worker.postMessage(request)
   }
 
-  return { isRunning, run, stop }
+  /**
+   * Execute code with stdin, returning raw stdout (no verdict comparison).
+   * Creates a fresh Worker, sends an ExecuteRequest, and resolves on completion.
+   * Wall-clock kill timer terminates the Worker after 6 s.
+   */
+  function execute(code: string, stdin: string): Promise<ExecuteResult> {
+    return new Promise((resolve) => {
+      const worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url), {
+        type: 'module',
+      })
+
+      const timer = setTimeout(() => {
+        worker.terminate()
+        resolve({
+          type: 'execute_result',
+          stdout: '',
+          elapsed_ms: WALL_CLOCK_KILL_MS,
+          error: 'Execution timed out',
+        })
+      }, WALL_CLOCK_KILL_MS)
+
+      worker.onmessage = (event: MessageEvent<ExecuteResult>) => {
+        if (event.data.type === 'execute_result') {
+          clearTimeout(timer)
+          worker.terminate()
+          resolve(event.data)
+        }
+      }
+
+      worker.onerror = () => {
+        clearTimeout(timer)
+        worker.terminate()
+        resolve({
+          type: 'execute_result',
+          stdout: '',
+          elapsed_ms: 0,
+          error: 'Worker error',
+        })
+      }
+
+      const request: ExecuteRequest = { type: 'execute', code, stdin }
+      worker.postMessage(request)
+    })
+  }
+
+  return { isRunning, run, stop, execute }
 }

@@ -12,7 +12,9 @@
  *  - Handle GenerateRequest: run generator code per input to produce expected_output
  */
 
-import { buildWrappedCode, computeVerdict } from './worker-utils'
+import { buildWrappedCode, computeVerdict, buildTestcaseResultFields } from './worker-utils'
+import type { VerdictDetail } from './worker-utils'
+export type { VerdictDetail }
 
 // ── Message protocol types (task 4.2) ──────────────────────────────────────
 
@@ -22,6 +24,8 @@ export interface RunRequest {
   testcases: Array<{ input: string; expected_output: string }>
   /** Maximum Python bytecode operations per testcase. Default: 10_000_000 */
   opLimit?: number
+  /** Controls which fields are included in TestcaseResult. Default: 'hidden' */
+  verdictDetail?: VerdictDetail
 }
 
 export interface TestcaseResult {
@@ -29,7 +33,7 @@ export interface TestcaseResult {
   index: number
   verdict: 'AC' | 'WA' | 'TLE' | 'RE'
   actual?: string
-  expected: string
+  expected?: string
   elapsed_ms: number
   /** Set for RE verdicts */
   error?: string
@@ -60,9 +64,26 @@ export interface GenerateComplete {
   testcases: GenerateTestcase[]
 }
 
-type WorkerOutMessage = TestcaseResult | RunComplete | GenerateComplete
+/** Request to execute code with stdin, returning raw stdout (no verdict comparison). */
+export interface ExecuteRequest {
+  type: 'execute'
+  code: string
+  stdin: string
+  /** Maximum Python bytecode operations. Default: 10_000_000 */
+  opLimit?: number
+}
 
-const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.29.3/full/'
+export interface ExecuteResult {
+  type: 'execute_result'
+  stdout: string
+  elapsed_ms: number
+  /** Set if execution failed (runtime error or TLE) */
+  error?: string
+}
+
+type WorkerOutMessage = TestcaseResult | RunComplete | GenerateComplete | ExecuteResult
+
+const PYODIDE_CDN = '/pyodide/'
 const DEFAULT_OP_LIMIT = 10_000_000
 /** Wall-clock budget per testcase in milliseconds (task 4.6) */
 const WALL_CLOCK_MS = 5_000
@@ -82,7 +103,7 @@ async function ensurePyodide(): Promise<void> {
 // ── Message handler ────────────────────────────────────────────────────────
 
 self.onmessage = async (
-  event: MessageEvent<RunRequest | GenerateRequest | { type: 'preload' }>,
+  event: MessageEvent<RunRequest | ExecuteRequest | GenerateRequest | { type: 'preload' }>,
 ) => {
   const { type } = event.data
 
@@ -97,9 +118,14 @@ self.onmessage = async (
     return
   }
 
+  if (type === 'execute') {
+    await handleExecute(event.data as ExecuteRequest)
+    return
+  }
+
   if (type !== 'run') return
 
-  const { code, testcases, opLimit = DEFAULT_OP_LIMIT } = event.data as RunRequest
+  const { code, testcases, opLimit = DEFAULT_OP_LIMIT, verdictDetail = 'hidden' } = event.data as RunRequest
 
   await ensurePyodide()
 
@@ -136,8 +162,8 @@ self.onmessage = async (
           type: 'testcase_result',
           index: i,
           verdict: 'TLE',
-          expected: expected_output,
           elapsed_ms: performance.now() - startTime,
+          ...buildTestcaseResultFields('', expected_output, verdictDetail),
         } satisfies TestcaseResult)
         continue
       }
@@ -153,9 +179,8 @@ self.onmessage = async (
         type: 'testcase_result',
         index: i,
         verdict,
-        actual,
-        expected: expected_output,
         elapsed_ms,
+        ...buildTestcaseResultFields(actual, expected_output, verdictDetail),
       } satisfies TestcaseResult)
     } catch (err: unknown) {
       clearTimeout(wallClock)
@@ -167,9 +192,9 @@ self.onmessage = async (
         type: 'testcase_result',
         index: i,
         verdict: isTle ? 'TLE' : 'RE',
-        expected: expected_output,
         elapsed_ms,
         error: isTle ? undefined : errMsg,
+        ...buildTestcaseResultFields('', expected_output, verdictDetail),
       } satisfies TestcaseResult)
     }
   }
@@ -179,6 +204,45 @@ self.onmessage = async (
     total: testcases.length,
     passed,
   } satisfies WorkerOutMessage)
+}
+
+// ── Execute handler (pure execution, no verdict) ─────────────────────────
+
+async function handleExecute(req: ExecuteRequest): Promise<void> {
+  const { code, stdin, opLimit = DEFAULT_OP_LIMIT } = req
+
+  await ensurePyodide()
+
+  const startTime = performance.now()
+
+  // Namespace cleanup
+  try {
+    pyodide.globals.clear()
+  } catch {
+    // ignore
+  }
+
+  try {
+    const wrapped = buildWrappedCode(code, stdin, opLimit)
+    await pyodide.runPythonAsync(wrapped)
+
+    const stdout: string = pyodide.globals.get('_output') ?? ''
+
+    self.postMessage({
+      type: 'execute_result',
+      stdout,
+      elapsed_ms: performance.now() - startTime,
+    } satisfies ExecuteResult)
+  } catch (err: unknown) {
+    const errMsg = String(err)
+
+    self.postMessage({
+      type: 'execute_result',
+      stdout: '',
+      elapsed_ms: performance.now() - startTime,
+      error: errMsg,
+    } satisfies ExecuteResult)
+  }
 }
 
 // ── Generator handler ──────────────────────────────────────────────────────

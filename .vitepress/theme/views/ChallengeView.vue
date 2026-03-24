@@ -9,9 +9,10 @@ import AppHeader from '../components/layout/AppHeader.vue'
 import ProblemPanel from '../components/challenge/ProblemPanel.vue'
 import CodeEditor from '../components/editor/CodeEditor.vue'
 import RunButton from '../components/editor/RunButton.vue'
+import RunModal from '../components/editor/RunModal.vue'
 import TestResultPanel from '../components/editor/TestResultPanel.vue'
 import { useExecutorStore } from '../stores/executor'
-import type { GenerateRequest, GenerateComplete } from '../workers/pyodide.worker'
+import type { GenerateRequest, GenerateComplete, VerdictDetail } from '../workers/pyodide.worker'
 
 const { frontmatter } = useData()
 const router = useRouter()
@@ -23,6 +24,23 @@ const { isRunning, run, stop } = useExecutor()
 const code = ref('')
 const errorMessage = ref('')
 const isTestcaseReady = ref(false)
+const isRunModalOpen = ref(false)
+
+// Verdict detail: controls what expected/actual info is exposed
+const VALID_VERDICT_DETAILS = new Set<VerdictDetail>(['hidden', 'actual', 'full'])
+const rawVerdictDetail: string = frontmatter.value.verdict_detail ?? 'hidden'
+const verdictDetail: VerdictDetail = VALID_VERDICT_DETAILS.has(rawVerdictDetail as VerdictDetail)
+  ? (rawVerdictDetail as VerdictDetail)
+  : 'hidden'
+
+// Full testcases (with expected_output) kept in component-local variable,
+// never stored in Pinia when verdictDetail is not 'full'
+let localTestcases: Array<{ input: string; expected_output: string }> = []
+
+const defaultStdin = computed(() => {
+  const challenge = challengeStore.currentChallenge
+  return challenge?.testcases[0]?.input ?? ''
+})
 
 // Track the in-progress generator worker so we can terminate on unmount
 let activeWorker: Worker | null = null
@@ -111,7 +129,14 @@ onMounted(() => {
       return
     }
 
-    challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases })
+    // Keep full testcases in component-local variable for Worker submission
+    localTestcases = testcases
+
+    // Store data stripping: only expose expected_output to store when verdict_detail is 'full'
+    const storeTestcases = verdictDetail === 'full'
+      ? testcases
+      : testcases.map((tc) => ({ input: tc.input }))
+    challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases: storeTestcases })
     isTestcaseReady.value = true
   })()
 })
@@ -168,10 +193,9 @@ function runGenerator(
   })
 }
 
-async function handleRun() {
-  const challenge = challengeStore.currentChallenge
-  if (!challenge) return
-  await run(code.value, challenge.testcases)
+async function handleSubmit() {
+  if (!localTestcases.length) return
+  await run(code.value, localTestcases, verdictDetail)
 }
 </script>
 
@@ -215,24 +239,43 @@ async function handleRun() {
                 :style="{ height: `${clampedBottomHeight}px` }"
               >
                 <div class="shrink-0 border-t border-slate-200 dark:border-gray-800 p-3 flex items-center gap-3">
+                  <!-- Run button: always enabled, opens modal -->
+                  <button
+                    data-testid="run-btn"
+                    class="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded font-medium text-sm transition-colors cursor-pointer flex items-center gap-1.5"
+                    @click="isRunModalOpen = true"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" />
+                    </svg>
+                    執行
+                  </button>
+                  <!-- Submit button: disabled until testcases ready -->
                   <RunButton
                     :is-running="isRunning"
                     :is-ready="isTestcaseReady"
                     :progress="executorStore.results.length"
                     :total="executorStore.totalTestcases"
-                    @run="handleRun"
+                    @run="handleSubmit"
                     @stop="stop"
                   />
                   <span v-if="executorStore.status === 'done'" class="text-sm text-slate-500 dark:text-gray-400">
                     得分：{{ executorStore.passed }} / {{ executorStore.total }}
                   </span>
                 </div>
-                <TestResultPanel :results="executorStore.results" :status="executorStore.status" />
+                <TestResultPanel :results="executorStore.results" :status="executorStore.status" :verdict-detail="verdictDetail" />
               </div>
             </div>
           </template>
         </SplitPane>
       </div>
     </template>
+
+    <RunModal
+      :code="code"
+      :default-stdin="defaultStdin"
+      :is-open="isRunModalOpen"
+      @close="isRunModalOpen = false"
+    />
   </div>
 </template>
