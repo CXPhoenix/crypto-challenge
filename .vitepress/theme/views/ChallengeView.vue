@@ -12,7 +12,7 @@ import RunButton from '../components/editor/RunButton.vue'
 import RunModal from '../components/editor/RunModal.vue'
 import TestResultPanel from '../components/editor/TestResultPanel.vue'
 import { useExecutorStore } from '../stores/executor'
-import type { GenerateRequest, GenerateComplete } from '../workers/pyodide.worker'
+import type { GenerateRequest, GenerateComplete, VerdictDetail } from '../workers/pyodide.worker'
 
 const { frontmatter } = useData()
 const router = useRouter()
@@ -25,6 +25,17 @@ const code = ref('')
 const errorMessage = ref('')
 const isTestcaseReady = ref(false)
 const isRunModalOpen = ref(false)
+
+// Verdict detail: controls what expected/actual info is exposed
+const VALID_VERDICT_DETAILS = new Set<VerdictDetail>(['hidden', 'actual', 'full'])
+const rawVerdictDetail: string = frontmatter.value.verdict_detail ?? 'hidden'
+const verdictDetail: VerdictDetail = VALID_VERDICT_DETAILS.has(rawVerdictDetail as VerdictDetail)
+  ? (rawVerdictDetail as VerdictDetail)
+  : 'hidden'
+
+// Full testcases (with expected_output) kept in component-local variable,
+// never stored in Pinia when verdictDetail is not 'full'
+let localTestcases: Array<{ input: string; expected_output: string }> = []
 
 const defaultStdin = computed(() => {
   const challenge = challengeStore.currentChallenge
@@ -118,7 +129,14 @@ onMounted(() => {
       return
     }
 
-    challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases })
+    // Keep full testcases in component-local variable for Worker submission
+    localTestcases = testcases
+
+    // Store data stripping: only expose expected_output to store when verdict_detail is 'full'
+    const storeTestcases = verdictDetail === 'full'
+      ? testcases
+      : testcases.map((tc) => ({ input: tc.input }))
+    challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases: storeTestcases })
     isTestcaseReady.value = true
   })()
 })
@@ -176,9 +194,8 @@ function runGenerator(
 }
 
 async function handleSubmit() {
-  const challenge = challengeStore.currentChallenge
-  if (!challenge) return
-  await run(code.value, challenge.testcases)
+  if (!localTestcases.length) return
+  await run(code.value, localTestcases, verdictDetail)
 }
 </script>
 
@@ -246,7 +263,7 @@ async function handleSubmit() {
                     得分：{{ executorStore.passed }} / {{ executorStore.total }}
                   </span>
                 </div>
-                <TestResultPanel :results="executorStore.results" :status="executorStore.status" />
+                <TestResultPanel :results="executorStore.results" :status="executorStore.status" :verdict-detail="verdictDetail" />
               </div>
             </div>
           </template>

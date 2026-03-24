@@ -12,7 +12,9 @@
  *  - Handle GenerateRequest: run generator code per input to produce expected_output
  */
 
-import { buildWrappedCode, computeVerdict } from './worker-utils'
+import { buildWrappedCode, computeVerdict, buildTestcaseResultFields } from './worker-utils'
+import type { VerdictDetail } from './worker-utils'
+export type { VerdictDetail }
 
 // ── Message protocol types (task 4.2) ──────────────────────────────────────
 
@@ -22,6 +24,8 @@ export interface RunRequest {
   testcases: Array<{ input: string; expected_output: string }>
   /** Maximum Python bytecode operations per testcase. Default: 10_000_000 */
   opLimit?: number
+  /** Controls which fields are included in TestcaseResult. Default: 'hidden' */
+  verdictDetail?: VerdictDetail
 }
 
 export interface TestcaseResult {
@@ -29,7 +33,7 @@ export interface TestcaseResult {
   index: number
   verdict: 'AC' | 'WA' | 'TLE' | 'RE'
   actual?: string
-  expected: string
+  expected?: string
   elapsed_ms: number
   /** Set for RE verdicts */
   error?: string
@@ -121,7 +125,7 @@ self.onmessage = async (
 
   if (type !== 'run') return
 
-  const { code, testcases, opLimit = DEFAULT_OP_LIMIT } = event.data as RunRequest
+  const { code, testcases, opLimit = DEFAULT_OP_LIMIT, verdictDetail = 'hidden' } = event.data as RunRequest
 
   await ensurePyodide()
 
@@ -158,8 +162,8 @@ self.onmessage = async (
           type: 'testcase_result',
           index: i,
           verdict: 'TLE',
-          expected: expected_output,
           elapsed_ms: performance.now() - startTime,
+          ...buildTestcaseResultFields('', expected_output, verdictDetail),
         } satisfies TestcaseResult)
         continue
       }
@@ -175,9 +179,8 @@ self.onmessage = async (
         type: 'testcase_result',
         index: i,
         verdict,
-        actual,
-        expected: expected_output,
         elapsed_ms,
+        ...buildTestcaseResultFields(actual, expected_output, verdictDetail),
       } satisfies TestcaseResult)
     } catch (err: unknown) {
       clearTimeout(wallClock)
@@ -189,9 +192,9 @@ self.onmessage = async (
         type: 'testcase_result',
         index: i,
         verdict: isTle ? 'TLE' : 'RE',
-        expected: expected_output,
         elapsed_ms,
         error: isTle ? undefined : errMsg,
+        ...buildTestcaseResultFields('', expected_output, verdictDetail),
       } satisfies TestcaseResult)
     }
   }

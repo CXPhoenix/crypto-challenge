@@ -5,6 +5,31 @@
 
 export type Verdict = 'AC' | 'WA'
 
+export type VerdictDetail = 'hidden' | 'actual' | 'full'
+
+/**
+ * Build the optional expected/actual fields for a TestcaseResult
+ * based on the verdictDetail setting.
+ *
+ * - hidden: omit both
+ * - actual: include actual only
+ * - full:   include both
+ */
+export function buildTestcaseResultFields(
+  actual: string,
+  expected: string,
+  verdictDetail: VerdictDetail,
+): { actual?: string; expected?: string } {
+  switch (verdictDetail) {
+    case 'hidden':
+      return {}
+    case 'actual':
+      return { actual }
+    case 'full':
+      return { actual, expected }
+  }
+}
+
 /**
  * Compare actual output to expected output.
  * Strips trailing whitespace/newlines before comparison (mirrors typical judge behaviour).
