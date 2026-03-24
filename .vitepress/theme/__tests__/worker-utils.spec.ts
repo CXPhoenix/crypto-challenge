@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { computeVerdict, buildWrappedCode } from '../workers/worker-utils'
+import { computeVerdict, buildWrappedCode, buildTestcaseResultFields } from '../workers/worker-utils'
+import type { VerdictDetail } from '../workers/worker-utils'
 
 describe('computeVerdict', () => {
   it('returns AC when output matches expected exactly', () => {
@@ -93,5 +94,31 @@ describe('buildWrappedCode', () => {
     const stdinPos = code.indexOf('sys.stdin')
     expect(opCounterPos).toBeLessThan(sandboxPos)
     expect(sandboxPos).toBeLessThan(stdinPos)
+  })
+})
+
+describe('buildTestcaseResultFields', () => {
+  it('hidden mode returns neither expected nor actual', () => {
+    const fields = buildTestcaseResultFields('HELLO', 'KHOOR', 'hidden')
+    expect(fields).toEqual({})
+    expect('expected' in fields).toBe(false)
+    expect('actual' in fields).toBe(false)
+  })
+
+  it('actual mode returns actual but not expected', () => {
+    const fields = buildTestcaseResultFields('HELLO', 'KHOOR', 'actual')
+    expect(fields).toEqual({ actual: 'HELLO' })
+    expect('expected' in fields).toBe(false)
+  })
+
+  it('full mode returns both expected and actual', () => {
+    const fields = buildTestcaseResultFields('HELLO', 'KHOOR', 'full')
+    expect(fields).toEqual({ actual: 'HELLO', expected: 'KHOOR' })
+  })
+
+  it('preserves exact string values without trimming', () => {
+    const fields = buildTestcaseResultFields('HELLO\n', 'KHOOR\n', 'full')
+    expect(fields.actual).toBe('HELLO\n')
+    expect(fields.expected).toBe('KHOOR\n')
   })
 })

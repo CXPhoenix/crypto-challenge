@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { useExecutorStore } from '../stores/executor'
-import type { RunRequest, TestcaseResult, RunComplete, ExecuteRequest, ExecuteResult } from '../workers/pyodide.worker'
+import type { RunRequest, TestcaseResult, RunComplete, ExecuteRequest, ExecuteResult, VerdictDetail } from '../workers/pyodide.worker'
 
 const WALL_CLOCK_KILL_MS = 6_000
 
@@ -41,6 +41,7 @@ export function useExecutor() {
   async function run(
     code: string,
     testcases: Array<{ input: string; expected_output: string }>,
+    verdictDetail: VerdictDetail = 'hidden',
   ): Promise<void> {
     if (store.status === 'running') stop()
 
@@ -80,6 +81,7 @@ export function useExecutor() {
       type: 'run',
       code,
       testcases: testcases.map((tc) => ({ input: tc.input, expected_output: tc.expected_output })),
+      verdictDetail,
     }
     worker.postMessage(request)
   }
