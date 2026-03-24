@@ -67,7 +67,6 @@ The `docs/public/pyodide/` directory SHALL be listed in `.gitignore` to prevent 
 
 ## Requirements
 
-
 <!-- @trace
 source: frontend-security-hardening
 updated: 2026-03-24
@@ -120,3 +119,37 @@ The `docs/public/pyodide/` directory SHALL be listed in `.gitignore` to prevent 
 
 - **WHEN** a developer runs `git status` after downloading Pyodide files
 - **THEN** the `docs/public/pyodide/` directory SHALL NOT appear as untracked files
+
+---
+### Requirement: Build pipeline provisions Pyodide runtime before VitePress build
+
+The project build pipeline SHALL execute `scripts/download-pyodide.sh` before running `vitepress build`. The `package.json` `build` script SHALL include a `build:pyodide` step that invokes the download script, ensuring that `docs/public/pyodide/` contains all required runtime files in every build environment (local, CI, Cloudflare Pages).
+
+#### Scenario: Pyodide files are present in CI build output
+
+- **WHEN** the `pnpm build` command is executed in a fresh CI environment (no pre-existing `docs/public/pyodide/` directory)
+- **THEN** `scripts/download-pyodide.sh` SHALL run before `vitepress build`
+- **AND** `.vitepress/dist/pyodide/pyodide.mjs` SHALL exist in the build output
+- **AND** `.vitepress/dist/pyodide/` SHALL contain all 5 required files: `pyodide.mjs`, `pyodide.asm.js`, `pyodide.asm.wasm`, `python_stdlib.zip`, `pyodide-lock.json`
+
+#### Scenario: Build is idempotent when Pyodide files already exist
+
+- **WHEN** `pnpm build` is executed and `docs/public/pyodide/pyodide.mjs` already exists
+- **THEN** `scripts/download-pyodide.sh` SHALL skip the download for existing files
+- **AND** the build SHALL complete without re-downloading the Pyodide runtime
+
+<!-- @trace
+source: fix-pyodide-build-pipeline
+updated: 2026-03-24
+code:
+  - package.json
+  - scripts/download-pyodide.sh
+tests: []
+-->
+
+<!-- @trace
+source: fix-pyodide-build-pipeline
+updated: 2026-03-24
+code:
+  - package.json
+-->
