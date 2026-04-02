@@ -1,0 +1,105 @@
+## ADDED Requirements
+
+### Requirement: WASM module decrypts and loads encrypted pool
+
+The WASM module SHALL export a `load_pool(challenge_id: &str, encrypted_data: &[u8])` function that validates the pool binary format (magic bytes, version), extracts the nonce, reconstructs the AES-256-GCM key from obfuscated key material, and decrypts the payload. On successful decryption, the pool data SHALL be stored in WASM linear memory indexed by `challenge_id`. On failure, the function SHALL return a descriptive error.
+
+#### Scenario: Valid pool loads successfully
+
+- **WHEN** `load_pool` is called with a correctly encrypted pool file
+- **THEN** the function SHALL return success and the pool SHALL be available for subsequent operations
+
+#### Scenario: Invalid magic bytes rejected
+
+- **WHEN** `load_pool` is called with data that does not start with `CXPOOL`
+- **THEN** the function SHALL return an error indicating invalid format
+
+#### Scenario: Tampered data rejected by GCM authentication
+
+- **WHEN** `load_pool` is called with modified ciphertext
+- **THEN** AES-GCM decryption SHALL fail and the function SHALL return an authentication error
+
+### Requirement: WASM module selects random testcases with session tracking
+
+The WASM module SHALL export a `select_testcases(challenge_id: &str, count: usize)` function that randomly selects `count` testcases from the loaded pool. It SHALL return a JSON object `{inputs: string[], session_id: string}` where `inputs` contains only the input strings (NOT expected outputs) and `session_id` is a unique identifier for this selection. The session data (selected indices and expected outputs) SHALL be retained in WASM memory for subsequent judging.
+
+#### Scenario: Correct number of inputs returned
+
+- **WHEN** `select_testcases("caesar_encrypt", 10)` is called on a pool with 200 entries
+- **THEN** the result SHALL contain exactly 10 input strings and a non-empty session_id
+
+#### Scenario: Expected outputs not exposed in return value
+
+- **WHEN** `select_testcases` returns its result
+- **THEN** the returned JSON SHALL NOT contain any `expected_output` field
+
+#### Scenario: Pool not loaded returns error
+
+- **WHEN** `select_testcases` is called for a challenge_id that has not been loaded
+- **THEN** the function SHALL return an error
+
+### Requirement: WASM module judges student outputs internally
+
+The WASM module SHALL export a `judge(challenge_id: &str, session_id: &str, results: JsValue)` function. The `results` parameter SHALL be an array of `{stdout: string, error?: string, elapsed_ms: number}` objects, one per testcase in session order. The function SHALL compare each `stdout` (trimmed trailing whitespace) against the corresponding `expected_output` from the session and return an array of verdict objects.
+
+Each verdict object SHALL contain:
+- `verdict`: `AC` | `WA` | `TLE` | `RE`
+- `actual`: included only when `verdict_detail` is `actual` or `full`
+- `expected`: included only when `verdict_detail` is `full`
+- `elapsed_ms`: passed through from input
+
+The string comparison SHALL use constant-time comparison to prevent timing-based answer extraction. After judging, the session data SHALL be zeroized and the session SHALL be invalidated.
+
+#### Scenario: All correct answers produce AC verdicts
+
+- **WHEN** all student outputs match expected outputs (after trimming trailing whitespace)
+- **THEN** all verdict objects SHALL have `verdict: "AC"`
+
+#### Scenario: Wrong answer produces WA with verdict_detail=hidden
+
+- **WHEN** a student output does not match and `verdict_detail` is `hidden`
+- **THEN** the verdict object SHALL contain `verdict: "WA"` and `elapsed_ms` only, with no `actual` or `expected` field
+
+#### Scenario: Wrong answer produces WA with verdict_detail=full
+
+- **WHEN** a student output does not match and `verdict_detail` is `full`
+- **THEN** the verdict object SHALL contain `verdict: "WA"`, `actual`, `expected`, and `elapsed_ms`
+
+#### Scenario: Runtime error produces RE verdict
+
+- **WHEN** a result has a non-empty `error` field
+- **THEN** the verdict SHALL be `RE`
+
+#### Scenario: Session invalidated after judging
+
+- **WHEN** `judge` is called with a valid session_id
+- **AND** then called again with the same session_id
+- **THEN** the second call SHALL return an error indicating the session is invalid
+
+### Requirement: WASM module conditionally exposes expected output
+
+The WASM module SHALL export a `get_expected(challenge_id: &str, session_id: &str, index: usize)` function. When the pool's `verdict_detail` is `full`, it SHALL return the expected output string for the given testcase index. When `verdict_detail` is `hidden` or `actual`, it SHALL return `None` (null in JS).
+
+#### Scenario: get_expected returns value when verdict_detail is full
+
+- **WHEN** the pool was encrypted with `verdict_detail: "full"` and `get_expected` is called
+- **THEN** the function SHALL return the expected output string
+
+#### Scenario: get_expected returns null when verdict_detail is hidden
+
+- **WHEN** the pool was encrypted with `verdict_detail: "hidden"` and `get_expected` is called
+- **THEN** the function SHALL return null
+
+### Requirement: WASM key material uses obfuscated XOR split storage
+
+The encryption key SHALL be stored in the WASM binary as 4 pairs of 8-byte constant arrays. Each pair consists of a key segment XORed with a random mask and the mask itself. The key reconstruction function SHALL XOR each segment with its mask and concatenate the results to form the 32-byte key. After use, the reconstructed key SHALL be zeroized using the `zeroize` crate.
+
+#### Scenario: Key reconstruction produces correct key
+
+- **WHEN** the WASM module reconstructs the key from obfuscated segments
+- **THEN** the result SHALL equal the original encryption key used during pool generation
+
+#### Scenario: Key is zeroized after decryption
+
+- **WHEN** pool decryption completes
+- **THEN** the reconstructed key in memory SHALL be overwritten with zeros

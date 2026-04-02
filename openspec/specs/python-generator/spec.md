@@ -135,114 +135,93 @@ code:
 ---
 ### Requirement: Pyodide Worker executes generator to produce expected outputs
 
-The Pyodide Worker SHALL handle a `generate` message containing `generatorCode: string` and `inputs: string[]`. For each input, it SHALL execute `generatorCode` with that input as stdin and capture stdout as `expected_output`. It SHALL respond with a `generate_complete` message containing `testcases: Array<{ input: string; expected_output: string }>`. If any generator execution throws an error, the worker SHALL include an `error` field in the response for that entry.
+The Pyodide Worker SHALL handle a `generate` message containing `generatorCode: string` and `inputs: string[]` ONLY when the application is running in development mode. In production mode, the Worker SHALL NOT support the `generate` message type (the handler SHALL be excluded or return an error). For each input in dev mode, it SHALL execute `generatorCode` with that input as stdin and capture stdout as `expected_output`. It SHALL respond with a `generate_complete` message containing `testcases: Array<{ input: string; expected_output: string }>`. If any generator execution throws an error, the worker SHALL include an `error` field in the response for that entry.
 
-#### Scenario: Worker produces correct testcases from generator
+#### Scenario: Worker produces correct testcases from generator in dev mode
 
-- **WHEN** the worker receives a `generate` message with a valid generator script and inputs
+- **WHEN** the Worker receives a `generate` message in development mode with a valid generator script and inputs
 - **THEN** it responds with `generate_complete` containing testcases where each `expected_output` is the stdout of running the generator with the corresponding input as stdin
 
 #### Scenario: Worker reports generator errors without crashing
 
-- **WHEN** the generator script throws a Python exception on a given input
-- **THEN** the worker includes an `error` field for that testcase and continues processing remaining inputs
+- **WHEN** the generator script throws a Python exception on a given input in dev mode
+- **THEN** the Worker includes an `error` field for that testcase and continues processing remaining inputs
+
+#### Scenario: Generate message not handled in production mode
+
+- **WHEN** the Worker receives a `generate` message in production mode
+- **THEN** the Worker SHALL NOT execute generator code
 
 
 <!-- @trace
-source: markdown-panel-and-python-generator
-updated: 2026-03-13
+source: secure-challenge-pools
+updated: 2026-04-02
 code:
-  - docs/index.md
-  - .vitepress/theme/challenges/13-aes-ecb-decrypt.toml
-  - .vitepress/theme/components/challenge/ProblemPanel.vue
-  - docs/challenge/rsa-decrypt.md
-  - challenge-generator/src/algorithms/vigenere.rs
-  - .vitepress/theme/challenges/08-railfence-decrypt.toml
-  - .vitepress/theme/challenges/09-xor.toml
-  - docs/challenge/playfair-encrypt.md
-  - .vitepress/theme/challenges/01-caesar-encrypt.toml
-  - docs/challenge/xor-encrypt.md
-  - .vitepress/theme/Layout.vue
-  - challenge-generator/src/algorithms/playfair.rs
-  - .vitepress/theme/challenges/02-caesar-decrypt.toml
-  - challenge-generator/src/lib.rs
-  - .vitepress/theme/challenges/12-aes-ecb-encrypt.toml
-  - .vitepress/theme/challenges/06-playfair-decrypt.toml
-  - .vitepress/theme/challenges/14-simple-ecb-encrypt.toml
-  - challenge-generator/src/algorithms/railfence.rs
-  - challenge-generator/src/parser.rs
-  - .vitepress/theme/challenges/11-rsa-decrypt.toml
-  - docs/challenge/vigenere-decrypt.md
-  - challenge-generator/src/template.rs
-  - .vitepress/theme/challenges/15-simple-ecb-decrypt.toml
+  - testcase-generator/src/lib.rs
+  - testcase-generator/src/pool.rs
+  - testcase-generator/Cargo.toml
+  - .vitepress/plugins/strip-generator.ts
+  - testcase-generator/src/judge.rs
+  - scripts/generate-key-material.ts
   - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/challenges/07-railfence-encrypt.toml
-  - docs/challenge/simple-ecb-decrypt.md
-  - .vitepress/theme/challenges/10-rsa-encrypt.toml
-  - docs/challenge/playfair-decrypt.md
-  - .vitepress/theme/composables/useWasm.ts
-  - .vitepress/theme/challenges/05-playfair-encrypt.toml
-  - docs/challenge/aes-ecb-decrypt.md
-  - docs/challenge/vigenere-encrypt.md
-  - challenge-generator/Cargo.toml
-  - docs/challenge/rsa-encrypt.md
-  - challenge-generator/src/algorithms/caesar.rs
-  - docs/challenge/railfence-encrypt.md
-  - docs/challenge/caesar-encrypt.md
-  - docs/challenge/railfence-decrypt.md
-  - challenge-generator/src/algorithms/aes.rs
-  - docs/challenge/caesar-decrypt.md
-  - challenge-generator/src/algorithms/rsa.rs
-  - challenge-generator/src/algorithms/xor.rs
-  - challenge-generator/src/rng.rs
-  - docs/challenge/aes-ecb-encrypt.md
-  - .vitepress/theme/stores/challenge.ts
-  - .vitepress/theme/workers/pyodide.worker.ts
-  - docs/challenge/simple-ecb-encrypt.md
+  - .vitepress/theme/composables/useChallengeRunner.ts
   - package.json
-  - challenge-generator/src/algorithms/mod.rs
-  - .vitepress/theme/challenges/03-vigenere-encrypt.toml
-  - docs/shared/challenge.data.ts
-  - .vitepress/theme/challenges/04-vigenere-decrypt.toml
+  - .vitepress/config.mts
+  - testcase-generator/src/crypto.rs
+  - scripts/generate-pools.ts
+  - scripts/pool-key.ts
 tests:
-  - .vitepress/theme/__tests__/useWasm.spec.ts
-  - .vitepress/theme/__tests__/challenge.store.spec.ts
-  - .vitepress/theme/__tests__/pyodide-worker-generate.spec.ts
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
 -->
 
 ---
 ### Requirement: ChallengeView orchestrates two-phase testcase generation
 
-`ChallengeView` SHALL execute testcase generation in two sequential phases, initiated as a non-blocking background task immediately after mount:
+In development mode, `ChallengeView` SHALL delegate testcase generation to `useChallengeRunner`, which internally executes two sequential phases:
 1. Call WASM `generate_challenge(params_json, count)` to obtain `{ inputs }`
 2. Post a `generate` message to the Pyodide Worker with `generatorCode` (from frontmatter) and `inputs`, then await `generate_complete`
 
-The challenge store SHALL be updated only after both phases complete. The `GeneratedChallenge` type in the store SHALL NOT include a `description` field. The generation SHALL NOT block the rendering of `ProblemPanel` or `CodeEditor`. A reactive `isTestcaseReady` flag SHALL be set to `true` only after both phases succeed and the challenge store has been updated.
+In production mode, `ChallengeView` SHALL delegate to `useChallengeRunner`, which internally fetches an encrypted pool file, decrypts it via WASM, and selects testcases without executing any generator code.
 
-#### Scenario: Challenge loads with complete testcases
+In both modes, the challenge store SHALL be updated only after testcase preparation completes. The generation SHALL NOT block the rendering of `ProblemPanel` or `CodeEditor`. A reactive `isTestcaseReady` flag SHALL be set to `true` only after preparation succeeds.
 
-- **WHEN** a user opens a challenge page
-- **THEN** the left panel shows the markdown description immediately from `<Content />`, the editor loads `starter_code` from frontmatter, and testcases become available for running after both generation phases complete in the background
+`ChallengeView` SHALL NOT directly call `useWasm()`, spawn Workers, or hold `expected_output` in any component-local variable.
+
+#### Scenario: Challenge loads with complete testcases in dev mode
+
+- **WHEN** a user opens a challenge page in development mode
+- **THEN** the left panel shows the markdown description immediately, the editor loads `starter_code`, and testcases become available after both WASM generation and Pyodide generator execution complete
+
+#### Scenario: Challenge loads with pool-based testcases in production mode
+
+- **WHEN** a user opens a challenge page in production mode
+- **THEN** testcases are loaded from the encrypted pool via WASM without executing any Python generator code
 
 #### Scenario: UI does not show skeleton during generation
 
-- **WHEN** either WASM generation or Pyodide generator execution is in progress
-- **THEN** the left panel shows `ProblemPanel` content (NOT a skeleton loader), and the Run button shows a loading/disabled state instead of the play button
+- **WHEN** testcase preparation is in progress (either mode)
+- **THEN** the left panel shows `ProblemPanel` content (NOT a skeleton loader), and the submit button shows a loading/disabled state
 
 
 <!-- @trace
-source: lazy-testcase-gen-non-blocking-ui
-updated: 2026-03-13
+source: secure-challenge-pools
+updated: 2026-04-02
 code:
-  - .vitepress/theme/components/editor/TestResultPanel.vue
+  - testcase-generator/src/lib.rs
+  - testcase-generator/src/pool.rs
+  - testcase-generator/Cargo.toml
+  - .vitepress/plugins/strip-generator.ts
+  - testcase-generator/src/judge.rs
+  - scripts/generate-key-material.ts
   - .vitepress/theme/views/ChallengeView.vue
-  - pnpm-workspace.yaml
-  - .vitepress/theme/components/editor/RunButton.vue
+  - .vitepress/theme/composables/useChallengeRunner.ts
   - package.json
+  - .vitepress/config.mts
+  - testcase-generator/src/crypto.rs
+  - scripts/generate-pools.ts
+  - scripts/pool-key.ts
 tests:
-  - .vitepress/theme/__tests__/TestResultPanel.spec.ts
-  - .vitepress/theme/__tests__/RunButton.spec.ts
-  - .vitepress/theme/__tests__/ChallengeView.spec.ts
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
 -->
 
 ---
@@ -320,4 +299,42 @@ tests:
   - .vitepress/theme/__tests__/useWasm.spec.ts
   - .vitepress/theme/__tests__/challenge.store.spec.ts
   - .vitepress/theme/__tests__/pyodide-worker-generate.spec.ts
+-->
+
+---
+### Requirement: RunRequest does not carry expected_output in production mode
+
+In production mode, the `RunRequest` message sent to the Pyodide Worker SHALL contain `code: string` and `inputs: string[]` only. It SHALL NOT contain an `expected_output` field, a `testcases` array with expected outputs, or a `verdictDetail` field. The Worker SHALL return raw execution results `{stdout: string, error?: string, elapsed_ms: number}[]` without computing verdicts.
+
+In development mode, the `RunRequest` message SHALL retain the current format with `testcases: Array<{ input: string; expected_output: string }>` and `verdictDetail` for backward compatibility.
+
+#### Scenario: Production RunRequest contains only code and inputs
+
+- **WHEN** a submission occurs in production mode
+- **THEN** the `postMessage` to the Worker SHALL contain `{type: 'run', code: string, inputs: string[]}` with no `expected_output` or `verdictDetail`
+
+#### Scenario: Dev RunRequest retains current format
+
+- **WHEN** a submission occurs in development mode
+- **THEN** the `postMessage` to the Worker SHALL contain `{type: 'run', code: string, testcases: [{input, expected_output}], verdictDetail}` matching current behavior
+
+<!-- @trace
+source: secure-challenge-pools
+updated: 2026-04-02
+code:
+  - testcase-generator/src/lib.rs
+  - testcase-generator/src/pool.rs
+  - testcase-generator/Cargo.toml
+  - .vitepress/plugins/strip-generator.ts
+  - testcase-generator/src/judge.rs
+  - scripts/generate-key-material.ts
+  - .vitepress/theme/views/ChallengeView.vue
+  - .vitepress/theme/composables/useChallengeRunner.ts
+  - package.json
+  - .vitepress/config.mts
+  - testcase-generator/src/crypto.rs
+  - scripts/generate-pools.ts
+  - scripts/pool-key.ts
+tests:
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
 -->

@@ -6,6 +6,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
+import { stripGenerator } from './plugins/strip-generator'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -31,7 +32,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: 'https://github.com/CXPhoenix/crypto-challenge' }],
   },
   vite: {
-    plugins: [vueJsx(), vueDevTools(), tailwindcss(), wasm(), topLevelAwait()],
+    plugins: [vueJsx(), vueDevTools(), tailwindcss(), wasm(), topLevelAwait(), stripGenerator()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./.vitepress/theme', import.meta.url)),
