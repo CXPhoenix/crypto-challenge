@@ -58,6 +58,8 @@ Each `ParamSpec` variant SHALL support an optional `count` field of type `CountS
 
 The entire `count` field SHALL default to `CountSpec { min: 1, max: 1, separator: " " }` when omitted, preserving backward compatibility. For each param, the generator SHALL pick an actual count uniformly at random in `[count.min, count.max]`, generate that many values, and join them with `count.separator`.
 
+The supported `ParamSpec` variants SHALL be: `Int`, `AlphaUpper`, `AlphaLower`, `AlphaMixed`, `HexString`, `PrintableAscii`, `Enum`, and optionally `Faker` (when the `faker` Cargo feature is enabled). Challenge frontmatter params MUST use only these valid type names: `int`, `alpha_upper`, `alpha_lower`, `alpha_mixed`, `hex_string`, `printable_ascii`, `enum`, and `faker`. Using any other type name (e.g., `string`, `hex`) SHALL result in a deserialization error.
+
 #### Scenario: generate_challenge returns inputs in param order
 
 - **WHEN** `generate_challenge` is called with params JSON `{"plaintext": {...}, "shift": {...}}`
@@ -83,17 +85,10 @@ The entire `count` field SHALL default to `CountSpec { min: 1, max: 1, separator
 - **WHEN** a param is declared without a `count` field
 - **THEN** the param generates exactly 1 value with no separator (identical to previous behavior)
 
+#### Scenario: Invalid type name causes deserialization error
 
-<!-- @trace
-source: flexible-count-and-separator
-updated: 2026-03-16
-code:
-  - testcase-generator/src/rng.rs
-  - docs/challenge/caesar-03.md
-  - docs/challenge/caesar-01.md
-  - testcase-generator/src/parser.rs
-  - docs/challenge/caesar-02.md
--->
+- **WHEN** frontmatter params contain `type: string` or `type: hex`
+- **THEN** `generate_challenge` returns an error indicating unknown variant with the list of valid variants
 
 ---
 ### Requirement: Pyodide Worker executes generator to produce expected outputs
