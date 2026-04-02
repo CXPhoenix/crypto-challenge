@@ -1,6 +1,11 @@
 use indexmap::IndexMap;
 use rand::Rng;
 
+#[cfg(feature = "faker")]
+use fake::Fake;
+#[cfg(feature = "faker")]
+use crate::parser::FakerCategory;
+
 use crate::parser::ParamSpec;
 
 const UPPER: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -26,6 +31,9 @@ fn generate_one<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
         ParamSpec::AlphaMixed { count, .. } => count,
         ParamSpec::HexString { count, .. } => count,
         ParamSpec::PrintableAscii { count, .. } => count,
+        ParamSpec::Enum { count, .. } => count,
+        #[cfg(feature = "faker")]
+        ParamSpec::Faker { count, .. } => count,
     };
 
     debug_assert!(count_spec.min <= count_spec.max, "CountSpec.min must be <= max");
@@ -37,41 +45,77 @@ fn generate_one<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
         .join(&count_spec.separator)
 }
 
+/// Pick a random length in [min_len, max_len] that is a multiple of `multiple_of`.
+/// If multiple_of is 1 (the default), this is equivalent to gen_range(min..=max).
+fn random_len<R: Rng>(min_len: usize, max_len: usize, multiple_of: usize, rng: &mut R) -> usize {
+    let step = multiple_of.max(1);
+    // Smallest multiple of `step` that is >= min_len
+    let lo = (min_len + step - 1) / step;
+    // Largest multiple of `step` that is <= max_len
+    let hi = max_len / step;
+    debug_assert!(lo <= hi, "no valid length: min_len={min_len}, max_len={max_len}, multiple_of={step}");
+    rng.gen_range(lo..=hi) * step
+}
+
 /// Produce a single value for the given spec.
 fn generate_single<R: Rng>(spec: &ParamSpec, rng: &mut R) -> String {
     match spec {
         ParamSpec::Int { min, max, .. } => rng.gen_range(*min..=*max).to_string(),
-        ParamSpec::AlphaUpper { min_len, max_len, .. } => {
-            let len = rng.gen_range(*min_len..=*max_len);
+        ParamSpec::AlphaUpper { min_len, max_len, multiple_of, .. } => {
+            let len = random_len(*min_len, *max_len, *multiple_of, rng);
             (0..len)
                 .map(|_| UPPER[rng.gen_range(0..UPPER.len())] as char)
                 .collect()
         }
-        ParamSpec::AlphaLower { min_len, max_len, .. } => {
-            let len = rng.gen_range(*min_len..=*max_len);
+        ParamSpec::AlphaLower { min_len, max_len, multiple_of, .. } => {
+            let len = random_len(*min_len, *max_len, *multiple_of, rng);
             (0..len)
                 .map(|_| LOWER[rng.gen_range(0..LOWER.len())] as char)
                 .collect()
         }
-        ParamSpec::AlphaMixed { min_len, max_len, .. } => {
+        ParamSpec::AlphaMixed { min_len, max_len, multiple_of, .. } => {
             let combined: Vec<u8> = UPPER.iter().chain(LOWER.iter()).copied().collect();
-            let len = rng.gen_range(*min_len..=*max_len);
+            let len = random_len(*min_len, *max_len, *multiple_of, rng);
             (0..len)
                 .map(|_| combined[rng.gen_range(0..combined.len())] as char)
                 .collect()
         }
-        ParamSpec::HexString { min_len, max_len, .. } => {
-            let len = rng.gen_range(*min_len..=*max_len);
+        ParamSpec::HexString { min_len, max_len, multiple_of, .. } => {
+            let len = random_len(*min_len, *max_len, *multiple_of, rng);
             (0..len)
                 .map(|_| HEX_CHARS[rng.gen_range(0..HEX_CHARS.len())] as char)
                 .collect()
         }
-        ParamSpec::PrintableAscii { min_len, max_len, .. } => {
-            let len = rng.gen_range(*min_len..=*max_len);
+        ParamSpec::PrintableAscii { min_len, max_len, multiple_of, .. } => {
+            let len = random_len(*min_len, *max_len, *multiple_of, rng);
             (0..len)
                 .map(|_| PRINTABLE_ASCII[rng.gen_range(0..PRINTABLE_ASCII.len())] as char)
                 .collect()
         }
+        ParamSpec::Enum { values, .. } => {
+            values[rng.gen_range(0..values.len())].clone()
+        }
+        #[cfg(feature = "faker")]
+        ParamSpec::Faker { category, .. } => generate_fake(category, rng),
+    }
+}
+
+#[cfg(feature = "faker")]
+fn generate_fake<R: Rng>(category: &FakerCategory, rng: &mut R) -> String {
+    use fake::faker::{
+        name::en::{Name, FirstName, LastName},
+        internet::en::SafeEmail,
+        company::en::CompanyName,
+        address::en::{CityName, CountryName},
+    };
+    match category {
+        FakerCategory::Name => Name().fake_with_rng(rng),
+        FakerCategory::FirstName => FirstName().fake_with_rng(rng),
+        FakerCategory::LastName => LastName().fake_with_rng(rng),
+        FakerCategory::Email => SafeEmail().fake_with_rng(rng),
+        FakerCategory::Company => CompanyName().fake_with_rng(rng),
+        FakerCategory::City => CityName().fake_with_rng(rng),
+        FakerCategory::Country => CountryName().fake_with_rng(rng),
     }
 }
 
@@ -103,7 +147,7 @@ mod tests {
     #[test]
     fn alpha_upper_only_uppercase() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaUpper { min_len: 5, max_len: 10, count: CountSpec::default() };
+        let spec = ParamSpec::AlphaUpper { min_len: 5, max_len: 10, multiple_of: 1, count: CountSpec::default() };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_uppercase()));
         assert!((5..=10).contains(&v.len()));
@@ -112,7 +156,7 @@ mod tests {
     #[test]
     fn hex_string_valid_chars() {
         let mut rng = seeded();
-        let spec = ParamSpec::HexString { min_len: 4, max_len: 8, count: CountSpec::default() };
+        let spec = ParamSpec::HexString { min_len: 4, max_len: 8, multiple_of: 1, count: CountSpec::default() };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_hexdigit()));
     }
@@ -128,7 +172,7 @@ mod tests {
     #[test]
     fn alpha_lower_only_lowercase() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaLower { min_len: 5, max_len: 10, count: CountSpec::default() };
+        let spec = ParamSpec::AlphaLower { min_len: 5, max_len: 10, multiple_of: 1, count: CountSpec::default() };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_lowercase()), "expected all lowercase, got: {v}");
         assert!((5..=10).contains(&v.len()));
@@ -137,7 +181,7 @@ mod tests {
     #[test]
     fn alpha_mixed_only_alpha() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaMixed { min_len: 20, max_len: 30, count: CountSpec::default() };
+        let spec = ParamSpec::AlphaMixed { min_len: 20, max_len: 30, multiple_of: 1, count: CountSpec::default() };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().all(|c| c.is_ascii_alphabetic()), "expected only alpha chars, got: {v}");
         assert!((20..=30).contains(&v.len()));
@@ -146,7 +190,7 @@ mod tests {
     #[test]
     fn alpha_mixed_contains_both_cases() {
         let mut rng = seeded();
-        let spec = ParamSpec::AlphaMixed { min_len: 50, max_len: 50, count: CountSpec::default() };
+        let spec = ParamSpec::AlphaMixed { min_len: 50, max_len: 50, multiple_of: 1, count: CountSpec::default() };
         let v = generate_one(&spec, &mut rng);
         assert!(v.chars().any(|c| c.is_ascii_uppercase()), "expected at least one uppercase");
         assert!(v.chars().any(|c| c.is_ascii_lowercase()), "expected at least one lowercase");
@@ -155,7 +199,7 @@ mod tests {
     #[test]
     fn printable_ascii_valid_chars() {
         let mut rng = seeded();
-        let spec = ParamSpec::PrintableAscii { min_len: 20, max_len: 30, count: CountSpec::default() };
+        let spec = ParamSpec::PrintableAscii { min_len: 20, max_len: 30, multiple_of: 1, count: CountSpec::default() };
         let v = generate_one(&spec, &mut rng);
         assert!(
             v.chars().all(|c| c as u8 >= 0x21 && c as u8 <= 0x7e),
@@ -192,7 +236,7 @@ mod tests {
     #[test]
     fn generate_input_joins_in_declaration_order() {
         let params = make_params(&[
-            ("plaintext", ParamSpec::AlphaUpper { min_len: 5, max_len: 5, count: CountSpec::default() }),
+            ("plaintext", ParamSpec::AlphaUpper { min_len: 5, max_len: 5, multiple_of: 1, count: CountSpec::default() }),
             ("shift", ParamSpec::Int { min: 3, max: 3, count: CountSpec::default() }),
         ]);
         let mut rng = seeded();
@@ -281,5 +325,141 @@ mod tests {
         assert_eq!(v, "3|3", "expected pipe-separated values without trailing separator");
         // Must not end with the separator
         assert!(!v.ends_with('|'), "should have no trailing separator");
+    }
+
+    #[test]
+    fn enum_selects_from_values() {
+        let mut rng = seeded();
+        let spec = ParamSpec::Enum {
+            values: vec!["ECB".to_string(), "CBC".to_string()],
+            count: CountSpec::default(),
+        };
+        for _ in 0..100 {
+            let v = generate_one(&spec, &mut rng);
+            assert!(
+                v == "ECB" || v == "CBC",
+                "expected ECB or CBC, got: {v}"
+            );
+        }
+    }
+
+    #[test]
+    fn enum_with_count_generates_multiple() {
+        let mut rng = seeded();
+        let spec = ParamSpec::Enum {
+            values: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            count: CountSpec { min: 3, max: 3, separator: ",".to_string() },
+        };
+        let v = generate_one(&spec, &mut rng);
+        let parts: Vec<&str> = v.split(',').collect();
+        assert_eq!(parts.len(), 3, "expected 3 comma-separated values, got: {v}");
+        for part in parts {
+            assert!(
+                part == "A" || part == "B" || part == "C",
+                "expected A, B, or C, got: {part}"
+            );
+        }
+    }
+
+    #[test]
+    fn hex_string_multiple_of_respects_constraint() {
+        let spec = ParamSpec::HexString {
+            min_len: 16,
+            max_len: 64,
+            multiple_of: 16,
+            count: CountSpec::default(),
+        };
+        for seed in 0..200u64 {
+            let mut rng = SmallRng::seed_from_u64(seed);
+            let v = generate_one(&spec, &mut rng);
+            assert!(
+                v.len() % 16 == 0,
+                "seed={seed}: expected length multiple of 16, got {} (len={})", v, v.len()
+            );
+            assert!(
+                (16..=64).contains(&v.len()),
+                "seed={seed}: expected length in [16, 64], got {}", v.len()
+            );
+        }
+    }
+
+    #[test]
+    fn multiple_of_1_is_same_as_no_constraint() {
+        let spec = ParamSpec::AlphaUpper {
+            min_len: 5,
+            max_len: 10,
+            multiple_of: 1,
+            count: CountSpec::default(),
+        };
+        for seed in 0..50u64 {
+            let mut rng = SmallRng::seed_from_u64(seed);
+            let v = generate_one(&spec, &mut rng);
+            assert!((5..=10).contains(&v.len()));
+        }
+    }
+
+    #[test]
+    fn enum_deterministic_with_seed() {
+        let spec = ParamSpec::Enum {
+            values: vec!["X".to_string(), "Y".to_string(), "Z".to_string()],
+            count: CountSpec::default(),
+        };
+        let v1 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
+        let v2 = generate_one(&spec, &mut SmallRng::seed_from_u64(7));
+        assert_eq!(v1, v2);
+    }
+
+    #[cfg(feature = "faker")]
+    mod faker_tests {
+        use super::*;
+        use crate::parser::FakerCategory;
+
+        #[test]
+        fn faker_generates_name() {
+            let mut rng = seeded();
+            let spec = ParamSpec::Faker {
+                category: FakerCategory::Name,
+                count: CountSpec::default(),
+            };
+            let v = generate_one(&spec, &mut rng);
+            assert!(!v.is_empty(), "faker name should be non-empty");
+        }
+
+        #[test]
+        fn faker_with_count_generates_multiple() {
+            let mut rng = seeded();
+            let spec = ParamSpec::Faker {
+                category: FakerCategory::Email,
+                count: CountSpec { min: 2, max: 2, separator: ",".to_string() },
+            };
+            let v = generate_one(&spec, &mut rng);
+            let parts: Vec<&str> = v.split(',').collect();
+            assert_eq!(parts.len(), 2, "expected 2 comma-separated emails, got: {v}");
+            for part in parts {
+                assert!(part.contains('@'), "expected email-like string, got: {part}");
+            }
+        }
+
+        #[test]
+        fn faker_all_categories_produce_nonempty() {
+            let mut rng = seeded();
+            let categories = [
+                FakerCategory::Name,
+                FakerCategory::FirstName,
+                FakerCategory::LastName,
+                FakerCategory::Email,
+                FakerCategory::Company,
+                FakerCategory::City,
+                FakerCategory::Country,
+            ];
+            for cat in categories {
+                let spec = ParamSpec::Faker {
+                    category: cat.clone(),
+                    count: CountSpec::default(),
+                };
+                let v = generate_one(&spec, &mut rng);
+                assert!(!v.is_empty(), "faker {:?} should be non-empty", cat);
+            }
+        }
     }
 }

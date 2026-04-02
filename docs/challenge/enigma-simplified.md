@@ -8,8 +8,9 @@ algorithm: enigma_simplified
 testcase_count: 8
 params:
   rotor_wiring:
-    type: string
-    len: 26
+    type: alpha_upper
+    min_len: 26
+    max_len: 26
   rotor_position:
     type: int
     min: 0

@@ -8,19 +8,21 @@ algorithm: des_ecb_cbc
 testcase_count: 8
 params:
   key:
-    type: hex
-    len: 16
+    type: hex_string
+    min_len: 16
+    max_len: 16
   plaintext:
-    type: hex
+    type: hex_string
     min_len: 16
     max_len: 64
     multiple_of: 16
   mode:
-    type: string
+    type: enum
     values: ["ECB", "CBC"]
   iv:
-    type: hex
-    len: 16
+    type: hex_string
+    min_len: 16
+    max_len: 16
 generator: |
   from Crypto.Cipher import DES
   key = bytes.fromhex(input())
