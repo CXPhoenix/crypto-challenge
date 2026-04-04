@@ -35,9 +35,10 @@ const mockInputs = ref<string[]>([])
 const mockIsReady = ref(false)
 const mockIsRunning = ref(false)
 const mockErrorMessage = ref('')
+const mockVerdictDetail = ref('hidden')
 
 vi.mock('../composables/useChallengeRunner', () => ({
-  useChallengeRunner: (config: unknown) => ({
+  useChallengeRunner: () => ({
     loadTestcases: mockLoadTestcases,
     submit: mockSubmit,
     stop: mockStop,
@@ -46,7 +47,7 @@ vi.mock('../composables/useChallengeRunner', () => ({
     isReady: mockIsReady,
     isRunning: mockIsRunning,
     errorMessage: mockErrorMessage,
-    verdictDetail: (config as { verdictDetail: string }).verdictDetail,
+    verdictDetail: mockVerdictDetail,
   }),
   resolveVerdictDetail: (raw: string | undefined) => {
     const valid = new Set(['hidden', 'actual', 'full'])
@@ -91,6 +92,7 @@ describe('ChallengeView verdict_detail delegation', () => {
     mockIsReady.value = false
     mockIsRunning.value = false
     mockErrorMessage.value = ''
+    mockVerdictDetail.value = 'hidden'
     delete mockFrontmatter.verdict_detail
   })
 
@@ -158,5 +160,23 @@ describe('ChallengeView verdict_detail delegation', () => {
     // Verify ChallengeView source does not contain useWasm import
     // This is a structural test — the actual import is blocked by the mock setup
     expect(mockLoadTestcases).toBeDefined()
+  })
+
+  it('prod mode: TestResultPanel receives verdictDetail from pool (runner), not frontmatter', async () => {
+    // Simulate: frontmatter says hidden, but pool (runner) says actual
+    delete mockFrontmatter.verdict_detail // defaults to 'hidden'
+    mockVerdictDetail.value = 'actual' // pool says 'actual'
+
+    const wrapper = mount(ChallengeView, {
+      global: { stubs: { CodeEditor: CodeEditorStub } },
+    })
+    await flushPromises()
+
+    // Find TestResultPanel and check its verdict-detail prop
+    const panel = wrapper.findComponent({ name: 'TestResultPanel' })
+    expect(panel.exists()).toBe(true)
+    expect(panel.props('verdictDetail')).toBe('actual')
+
+    wrapper.unmount()
   })
 })

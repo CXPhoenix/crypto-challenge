@@ -49,7 +49,7 @@ const SEG3: [u8; 8] = ${toRustArray(segments[3]!.data)};
 const MASK3: [u8; 8] = ${toRustArray(segments[3]!.mask)};
 
 /// Reconstruct the pool encryption key from obfuscated segments.
-/// The returned value is wrapped in \\`Zeroizing\\` so it is zeroed on drop.
+/// The returned value is wrapped in \`Zeroizing\` so it is zeroed on drop.
 pub fn reconstruct_key() -> Zeroizing<[u8; 32]> {
     let mut key = Zeroizing::new([0u8; 32]);
     let pairs: [(&[u8; 8], &[u8; 8]); 4] = [

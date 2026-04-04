@@ -4,7 +4,14 @@
  *
  * In dev mode the plugin is a no-op, preserving the current development flow.
  */
-import type { Plugin } from 'vite'
+// Vite Plugin type — inlined to avoid pnpm hoisting dependency on vite package.
+// This file is consumed by .vitepress/config.mts where vite is available at runtime.
+interface Plugin {
+  name: string
+  enforce?: 'pre' | 'post'
+  apply?: 'build' | 'serve'
+  transform?(code: string, id: string): { code: string; map: null } | null
+}
 
 /**
  * Match challenge Markdown files only.
@@ -29,7 +36,7 @@ export function stripGenerator(): Plugin {
     enforce: 'pre',
     apply: 'build', // only in production builds
 
-    transform(code, id) {
+    transform(code: string, id: string) {
       if (!CHALLENGE_RE.test(id)) return null
       if (!id.endsWith('.md')) return null
 

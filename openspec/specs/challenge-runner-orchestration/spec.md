@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'secure-challenge-pools'. Update Purpose after archive.
+Defines the `useChallengeRunner` composable that provides a unified API for challenge testcase loading, student code submission, and verdict retrieval. It abstracts over two internal strategies: a dev strategy using WASM input generation plus Pyodide Worker execution, and a production strategy using encrypted pool decryption plus WASM-based judging.
 
 ## Requirements
 
@@ -95,12 +95,14 @@ When `import.meta.env.MODE === 'production'`, the composable SHALL use the produ
 
 1. Fetch the encrypted pool file from `/pools/<algorithm>.bin`
 2. Call WASM `load_pool(challenge_id, data)` to decrypt
-3. Call WASM `select_testcases(challenge_id, count)` to get `{inputs, session_id}`
-4. On `submit()`, spawn a Pyodide Worker with a simplified `RunRequest` containing only `{code, inputs}` — no `expected_output`
-5. Collect Worker stdout outputs
+3. Call WASM `select_testcases(challenge_id, count)` to get `{inputs, session_id, verdict_detail}` and store the returned `verdict_detail` as the authoritative display setting
+4. On `submit()`, spawn a Pyodide Worker with a `RunOnlyRequest` message containing `{type: 'run_only', code, inputs}` — no `expected_output`, no `verdictDetail`, no `testcases` array
+5. Collect Worker raw stdout outputs
 6. Call WASM `judge(challenge_id, session_id, outputs)` to obtain verdicts
 
 Expected output SHALL NOT pass through any JS-accessible variable, `postMessage`, or Pinia store when `verdict_detail` is `hidden` or `actual`.
+
+The composable SHALL expose `verdictDetail` as a reactive value sourced from the pool's `select_testcases` return. It SHALL NOT use the frontmatter-derived `config.verdictDetail` in production mode. This ensures the display behavior is controlled by the integrity-protected pool payload, not by client-side frontmatter that could be tampered with or become inconsistent with the pool.
 
 #### Scenario: Prod mode fetches encrypted pool
 
@@ -112,31 +114,37 @@ Expected output SHALL NOT pass through any JS-accessible variable, `postMessage`
 - **WHEN** `verdict_detail` is `hidden` and the production strategy is active
 - **THEN** no JS variable, `postMessage` payload, or Pinia store SHALL contain `expected_output` at any point
 
-#### Scenario: Prod mode submit only sends inputs to Worker
+#### Scenario: Prod mode submit sends RunOnlyRequest to Worker
 
 - **WHEN** `submit()` is called in production mode
-- **THEN** the Worker SHALL receive a `RunRequest` containing only `code` and `inputs[]`, with no `expected_output`
+- **THEN** the Worker SHALL receive a `RunOnlyRequest` message with `{type: 'run_only', code, inputs}` containing no `expected_output`, no `verdictDetail`, and no `testcases` array
+
+#### Scenario: Prod mode verdictDetail comes from pool
+
+- **WHEN** the production strategy calls `select_testcases` and receives `verdict_detail: "actual"` from the pool
+- **THEN** the composable's exposed `verdictDetail` value SHALL be `"actual"`
+- **AND** the frontmatter-derived `config.verdictDetail` SHALL NOT be used for UI display decisions
+
+#### Scenario: Prod mode verdictDetail updates on re-select
+
+- **WHEN** a session is consumed by `judge()` and `select_testcases` is called again
+- **THEN** the composable's exposed `verdictDetail` SHALL reflect the latest `select_testcases` return value
 
 
 <!-- @trace
-source: secure-challenge-pools
-updated: 2026-04-02
+source: prod-runner-convergence
+updated: 2026-04-04
 code:
-  - testcase-generator/src/lib.rs
-  - testcase-generator/src/pool.rs
-  - testcase-generator/Cargo.toml
-  - .vitepress/plugins/strip-generator.ts
-  - testcase-generator/src/judge.rs
-  - scripts/generate-key-material.ts
-  - .vitepress/theme/views/ChallengeView.vue
+  - .vitepress/theme/workers/pyodide.worker.ts
   - .vitepress/theme/composables/useChallengeRunner.ts
-  - package.json
-  - .vitepress/config.mts
-  - testcase-generator/src/crypto.rs
-  - scripts/generate-pools.ts
-  - scripts/pool-key.ts
+  - testcase-generator/src/pool.rs
+  - .vitepress/theme/views/ChallengeView.vue
+  - testcase-generator/src/lib.rs
+  - testcase-generator/src/judge.rs
 tests:
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
   - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
 -->
 
 ---
@@ -173,4 +181,188 @@ code:
   - scripts/pool-key.ts
 tests:
   - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+-->
+
+---
+### Requirement: Prod runner stop cancels in-flight submission and settles Promise
+
+When the production runner's `stop()` is called while `runStudentCode` is in-flight, the runner SHALL cancel the pending `killTimer`, terminate the worker, and cause the `runStudentCode` Promise to settle (resolve with `null`). After `stop()` returns, `isRunning` SHALL be `false` and the `submit()` Promise SHALL NOT remain pending indefinitely.
+
+#### Scenario: Stop during prod submission settles Promise
+
+- **WHEN** `submit()` is in progress in the production runner and `stop()` is called
+- **THEN** the `killTimer` SHALL be cleared
+- **AND** the worker SHALL be terminated
+- **AND** the `runStudentCode` Promise SHALL resolve with `null`
+- **AND** `isRunning` SHALL be `false`
+
+#### Scenario: Stop when no submission is in-flight is a no-op
+
+- **WHEN** `stop()` is called on the production runner while no submission is running
+- **THEN** the call SHALL have no effect and SHALL NOT throw
+
+#### Scenario: KillTimer does not fire after stop
+
+- **WHEN** `stop()` is called during an in-flight prod submission
+- **THEN** the `killTimer` callback SHALL NOT execute after `stop()` completes
+
+<!-- @trace
+source: harden-prod-pool-runner
+updated: 2026-04-04
+code:
+  - .vitepress/theme/composables/useChallengeRunner.ts
+tests:
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+-->
+
+
+<!-- @trace
+source: harden-prod-pool-runner
+updated: 2026-04-04
+code:
+  - .vitepress/theme/composables/useRemoteChallenge.ts
+  - testcase-generator/src/pool.rs
+  - README.md
+  - .vitepress/theme/workers/pyodide.worker.ts
+  - testcase-generator/src/judge.rs
+  - .vitepress/plugins/strip-generator.ts
+  - tsconfig.app.json
+  - .vitepress/theme/views/ChallengeView.vue
+  - tsconfig.node.json
+  - testcase-generator/src/lib.rs
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - requirements.txt
+  - package.json
+  - .vitepress/theme/composables/useChallengeRunner.ts
+  - scripts/generate-pools.ts
+  - .github/workflows/release.yml
+  - scripts/generate-key-material.ts
+tests:
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
+-->
+
+---
+### Requirement: Dev runner stop cancels in-flight submission and settles Promise
+
+When the dev runner's `stop()` is called while the submission worker is in-flight, the runner SHALL cancel the pending `killTimer` for the submission worker, terminate the submission worker, and cause the `submit()` Promise to settle. `stop()` SHALL also continue to terminate the generator-phase `activeWorker` if it is active. After `stop()` returns, `isRunning` SHALL be `false`.
+
+#### Scenario: Stop during dev submission settles Promise
+
+- **WHEN** `submit()` is in progress in the dev runner and `stop()` is called
+- **THEN** the submission worker's `killTimer` SHALL be cleared
+- **AND** the submission worker SHALL be terminated
+- **AND** `isRunning` SHALL be `false`
+- **AND** the `submit()` Promise SHALL NOT remain pending indefinitely
+
+#### Scenario: Stop during dev generator phase terminates activeWorker
+
+- **WHEN** the dev runner is in the generator phase (`loadTestcases` in progress) and `stop()` is called
+- **THEN** `activeWorker` SHALL be terminated
+- **AND** `isRunning` SHALL be `false`
+
+#### Scenario: Dev killTimer does not fire after stop
+
+- **WHEN** `stop()` is called during an in-flight dev submission
+- **THEN** the submission `killTimer` callback SHALL NOT execute after `stop()` completes
+
+<!-- @trace
+source: harden-prod-pool-runner
+updated: 2026-04-04
+code:
+  - .vitepress/theme/composables/useChallengeRunner.ts
+tests:
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+-->
+
+
+<!-- @trace
+source: harden-prod-pool-runner
+updated: 2026-04-04
+code:
+  - .vitepress/theme/composables/useRemoteChallenge.ts
+  - testcase-generator/src/pool.rs
+  - README.md
+  - .vitepress/theme/workers/pyodide.worker.ts
+  - testcase-generator/src/judge.rs
+  - .vitepress/plugins/strip-generator.ts
+  - tsconfig.app.json
+  - .vitepress/theme/views/ChallengeView.vue
+  - tsconfig.node.json
+  - testcase-generator/src/lib.rs
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - requirements.txt
+  - package.json
+  - .vitepress/theme/composables/useChallengeRunner.ts
+  - scripts/generate-pools.ts
+  - .github/workflows/release.yml
+  - scripts/generate-key-material.ts
+tests:
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
+-->
+
+---
+### Requirement: Cleanup cancels all pending timers and workers
+
+The `cleanup()` function for both prod and dev runners SHALL cancel all pending `killTimer` timers, terminate all active workers, and settle any in-flight Promises. After `cleanup()` returns, no stale timer callbacks SHALL fire. This prevents side effects after component unmount.
+
+#### Scenario: Cleanup during prod submission cancels timer
+
+- **WHEN** `cleanup()` is called on the prod runner while a submission is in-flight
+- **THEN** the `killTimer` SHALL be cleared
+- **AND** the worker SHALL be terminated
+- **AND** the in-flight Promise SHALL settle
+
+#### Scenario: Cleanup during dev submission cancels timer
+
+- **WHEN** `cleanup()` is called on the dev runner while a submission is in-flight
+- **THEN** the submission `killTimer` SHALL be cleared
+- **AND** both the submission worker and any active generator worker SHALL be terminated
+- **AND** in-flight Promises SHALL settle
+
+#### Scenario: No stale timer fires after cleanup
+
+- **WHEN** `cleanup()` is called and then sufficient wall-clock time passes for any previously scheduled `killTimer` to fire
+- **THEN** no callback SHALL execute from the cleared timers
+
+<!-- @trace
+source: harden-prod-pool-runner
+updated: 2026-04-04
+code:
+  - .vitepress/theme/composables/useChallengeRunner.ts
+tests:
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+-->
+
+<!-- @trace
+source: harden-prod-pool-runner
+updated: 2026-04-04
+code:
+  - .vitepress/theme/composables/useRemoteChallenge.ts
+  - testcase-generator/src/pool.rs
+  - README.md
+  - .vitepress/theme/workers/pyodide.worker.ts
+  - testcase-generator/src/judge.rs
+  - .vitepress/plugins/strip-generator.ts
+  - tsconfig.app.json
+  - .vitepress/theme/views/ChallengeView.vue
+  - tsconfig.node.json
+  - testcase-generator/src/lib.rs
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - requirements.txt
+  - package.json
+  - .vitepress/theme/composables/useChallengeRunner.ts
+  - scripts/generate-pools.ts
+  - .github/workflows/release.yml
+  - scripts/generate-key-material.ts
+tests:
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
 -->

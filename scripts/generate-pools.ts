@@ -17,6 +17,47 @@ import { resolve, join } from 'node:path'
 import { getPoolKey } from './pool-key.js'
 import { generateKeyMaterial } from './generate-key-material.js'
 
+// ── Python preflight check ────────────────────────────────────────────────
+
+function preflightCheckPython(): void {
+  // 1. Check python3 is available
+  try {
+    execFileSync('python3', ['--version'], { encoding: 'utf-8', timeout: 10_000 })
+  } catch {
+    console.error(
+      '[generate-pools] ERROR: python3 is not available.\n' +
+      '  Pool generation requires Python 3.10+.\n' +
+      '  Please install Python 3 and ensure "python3" is on your PATH.',
+    )
+    process.exit(1)
+  }
+
+  // 2. Check PyYAML is importable
+  try {
+    execFileSync('python3', ['-c', 'import yaml'], { encoding: 'utf-8', timeout: 10_000 })
+  } catch {
+    console.error(
+      '[generate-pools] ERROR: Python package "PyYAML" is not installed.\n' +
+      '  Run: pip install -r requirements.txt',
+    )
+    process.exit(1)
+  }
+
+  // 3. Check pycryptodome is importable (warn only — not all challenges need it)
+  try {
+    execFileSync('python3', ['-c', 'from Crypto.Cipher import DES'], {
+      encoding: 'utf-8',
+      timeout: 10_000,
+    })
+  } catch {
+    console.warn(
+      '[generate-pools] WARNING: Python package "pycryptodome" is not installed.\n' +
+      '  Challenges that require Crypto will fail.\n' +
+      '  Run: pip install -r requirements.txt',
+    )
+  }
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const PROJECT_ROOT = resolve(import.meta.dirname, '..')
@@ -239,6 +280,9 @@ function encryptPool(
 
 function main() {
   console.log('[generate-pools] Starting pool generation...')
+
+  // Verify Python runtime and packages are available
+  preflightCheckPython()
 
   // Ensure output directory exists
   if (!existsSync(POOLS_DIR)) {

@@ -33,7 +33,6 @@ pub struct Testcase {
 /// The decrypted pool payload.
 #[derive(Debug, Deserialize)]
 struct PoolPayload {
-    #[allow(dead_code)]
     challenge_id: String,
     verdict_detail: VerdictDetail,
     testcases: Vec<Testcase>,
@@ -87,6 +86,13 @@ pub fn load_pool(challenge_id: &str, encrypted_data: &[u8]) -> Result<(), String
     let payload: PoolPayload =
         serde_json::from_slice(&plaintext).map_err(|e| format!("Pool JSON parse error: {e}"))?;
 
+    if payload.challenge_id != challenge_id {
+        return Err(format!(
+            "Pool identity mismatch: expected \"{challenge_id}\", got \"{}\"",
+            payload.challenge_id
+        ));
+    }
+
     let loaded = LoadedPool {
         verdict_detail: payload.verdict_detail,
         testcases: payload.testcases,
@@ -100,11 +106,11 @@ pub fn load_pool(challenge_id: &str, encrypted_data: &[u8]) -> Result<(), String
 }
 
 /// Select `count` random testcases from a loaded pool.
-/// Returns `(session_id, inputs)` — inputs only, no expected outputs.
+/// Returns `(session_id, inputs, verdict_detail)` — inputs only, no expected outputs.
 pub fn select_testcases(
     challenge_id: &str,
     count: usize,
-) -> Result<(String, Vec<String>), String> {
+) -> Result<(String, Vec<String>, VerdictDetail), String> {
     with_state(|state| {
         let pool = state
             .pools
@@ -139,7 +145,9 @@ pub fn select_testcases(
         };
         state.sessions.insert(session_id.clone(), session);
 
-        Ok((session_id, inputs))
+        let verdict_detail = pool.verdict_detail;
+
+        Ok((session_id, inputs, verdict_detail))
     })
 }
 
@@ -209,7 +217,7 @@ mod tests {
     use aes_gcm::{AeadCore, Aes256Gcm, KeyInit};
     use aes_gcm::aead::Aead;
 
-    fn make_encrypted_pool(verdict_detail: &str, testcases: &[(&str, &str)]) -> Vec<u8> {
+    fn make_encrypted_pool_with_id(challenge_id: &str, verdict_detail: &str, testcases: &[(&str, &str)]) -> Vec<u8> {
         let tc_json: Vec<serde_json::Value> = testcases
             .iter()
             .map(|(i, e)| {
@@ -220,7 +228,7 @@ mod tests {
             })
             .collect();
         let payload = serde_json::json!({
-            "challenge_id": "test",
+            "challenge_id": challenge_id,
             "verdict_detail": verdict_detail,
             "testcases": tc_json,
         });
@@ -239,6 +247,10 @@ mod tests {
         out
     }
 
+    fn make_encrypted_pool(verdict_detail: &str, testcases: &[(&str, &str)]) -> Vec<u8> {
+        make_encrypted_pool_with_id("test", verdict_detail, testcases)
+    }
+
     #[test]
     fn load_and_select() {
         let data = make_encrypted_pool("hidden", &[
@@ -246,26 +258,26 @@ mod tests {
             ("C\n2\n", "D"),
             ("E\n3\n", "F"),
         ]);
-        load_pool("test_load", &data).unwrap();
-        let (session_id, inputs) = select_testcases("test_load", 2).unwrap();
+        load_pool("test", &data).unwrap();
+        let (session_id, inputs, _) = select_testcases("test", 2).unwrap();
         assert_eq!(inputs.len(), 2);
         assert!(!session_id.is_empty());
     }
 
     #[test]
     fn get_expected_hidden_returns_none() {
-        let data = make_encrypted_pool("hidden", &[("in", "out")]);
+        let data = make_encrypted_pool_with_id("test_hidden", "hidden", &[("in", "out")]);
         load_pool("test_hidden", &data).unwrap();
-        let (sid, _) = select_testcases("test_hidden", 1).unwrap();
+        let (sid, _, _) = select_testcases("test_hidden", 1).unwrap();
         let result = get_expected("test_hidden", &sid, 0).unwrap();
         assert!(result.is_none());
     }
 
     #[test]
     fn get_expected_full_returns_value() {
-        let data = make_encrypted_pool("full", &[("in", "expected_val")]);
+        let data = make_encrypted_pool_with_id("test_full", "full", &[("in", "expected_val")]);
         load_pool("test_full", &data).unwrap();
-        let (sid, _) = select_testcases("test_full", 1).unwrap();
+        let (sid, _, _) = select_testcases("test_full", 1).unwrap();
         let result = get_expected("test_full", &sid, 0).unwrap();
         assert_eq!(result, Some("expected_val".to_string()));
     }
@@ -278,14 +290,56 @@ mod tests {
 
     #[test]
     fn session_consumed_by_take() {
-        let data = make_encrypted_pool("full", &[("in", "out")]);
+        let data = make_encrypted_pool_with_id("test_take", "full", &[("in", "out")]);
         load_pool("test_take", &data).unwrap();
-        let (sid, _) = select_testcases("test_take", 1).unwrap();
+        let (sid, _, _) = select_testcases("test_take", 1).unwrap();
         let (detail, tcs) = take_session("test_take", &sid).unwrap();
         assert_eq!(detail, VerdictDetail::Full);
         assert_eq!(tcs.len(), 1);
         // Session is now consumed
         let err = get_expected("test_take", &sid, 0).unwrap_err();
         assert!(err.contains("Invalid session"));
+    }
+
+    #[test]
+    fn select_returns_verdict_detail() {
+        // Hidden
+        let data = make_encrypted_pool_with_id("test_vd_hidden", "hidden", &[("in1\n", "out1")]);
+        load_pool("test_vd_hidden", &data).unwrap();
+        let (_session_id, _inputs, vd) = select_testcases("test_vd_hidden", 1).unwrap();
+        assert_eq!(vd, VerdictDetail::Hidden);
+
+        // Actual
+        let data = make_encrypted_pool_with_id("test_vd_actual", "actual", &[("in2\n", "out2")]);
+        load_pool("test_vd_actual", &data).unwrap();
+        let (_session_id, _inputs, vd) = select_testcases("test_vd_actual", 1).unwrap();
+        assert_eq!(vd, VerdictDetail::Actual);
+
+        // Full
+        let data = make_encrypted_pool_with_id("test_vd_full", "full", &[("in3\n", "out3")]);
+        load_pool("test_vd_full", &data).unwrap();
+        let (_session_id, _inputs, vd) = select_testcases("test_vd_full", 1).unwrap();
+        assert_eq!(vd, VerdictDetail::Full);
+    }
+
+    #[test]
+    fn mismatched_challenge_id_rejected() {
+        // Pool payload has challenge_id "foo", but we load with "bar"
+        let data = make_encrypted_pool_with_id("foo", "hidden", &[("in", "out")]);
+        let err = load_pool("bar", &data).unwrap_err();
+        assert!(
+            err.contains("identity mismatch") || err.contains("mismatch"),
+            "Expected identity mismatch error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn matching_challenge_id_loads_successfully() {
+        // Pool payload has challenge_id "same_id", load with "same_id" — should succeed
+        let data = make_encrypted_pool_with_id("same_id", "hidden", &[("in", "out")]);
+        load_pool("same_id", &data).unwrap();
+        let (sid, inputs, _) = select_testcases("same_id", 1).unwrap();
+        assert_eq!(inputs.len(), 1);
+        assert!(!sid.is_empty());
     }
 }

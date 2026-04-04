@@ -2,17 +2,17 @@
 
 ## Purpose
 
-TBD - created by archiving change 'secure-challenge-pools'. Update Purpose after archive.
+Defines the WASM module's pool decryption, testcase selection, and judging capabilities. The module decrypts AES-256-GCM encrypted pool files, selects random testcases with session tracking, judges student outputs internally using constant-time comparison, and manages obfuscated key material to prevent answer extraction from client-side code.
 
 ## Requirements
 
 ### Requirement: WASM module decrypts and loads encrypted pool
 
-The WASM module SHALL export a `load_pool(challenge_id: &str, encrypted_data: &[u8])` function that validates the pool binary format (magic bytes, version), extracts the nonce, reconstructs the AES-256-GCM key from obfuscated key material, and decrypts the payload. On successful decryption, the pool data SHALL be stored in WASM linear memory indexed by `challenge_id`. On failure, the function SHALL return a descriptive error.
+The WASM module SHALL export a `load_pool(challenge_id: &str, encrypted_data: &[u8])` function that validates the pool binary format (magic bytes, version), extracts the nonce, reconstructs the AES-256-GCM key from obfuscated key material, and decrypts the payload. On successful decryption, the function SHALL verify that the `challenge_id` field embedded in the decrypted payload matches the `challenge_id` argument provided by the caller. If the identities do not match, `load_pool` SHALL return an error indicating the mismatch and SHALL NOT store the pool. On failure (format, decryption, or identity mismatch), the function SHALL return a descriptive error. On success, the pool data SHALL be stored in WASM linear memory indexed by `challenge_id`.
 
 #### Scenario: Valid pool loads successfully
 
-- **WHEN** `load_pool` is called with a correctly encrypted pool file
+- **WHEN** `load_pool` is called with a correctly encrypted pool file whose embedded `challenge_id` matches the caller-provided `challenge_id`
 - **THEN** the function SHALL return success and the pool SHALL be available for subsequent operations
 
 #### Scenario: Invalid magic bytes rejected
@@ -25,32 +25,53 @@ The WASM module SHALL export a `load_pool(challenge_id: &str, encrypted_data: &[
 - **WHEN** `load_pool` is called with modified ciphertext
 - **THEN** AES-GCM decryption SHALL fail and the function SHALL return an authentication error
 
+#### Scenario: Mismatched challenge_id rejected
+
+- **WHEN** `load_pool` is called with `challenge_id` argument `"caesar_encrypt"` but the decrypted payload contains `challenge_id: "vigenere_encrypt"`
+- **THEN** the function SHALL return an error indicating the identity mismatch between the expected and embedded challenge_id
+- **AND** the pool SHALL NOT be stored or available for subsequent operations
+
+#### Scenario: Payload challenge_id field is not dead code
+
+- **WHEN** the `PoolPayload` struct is compiled
+- **THEN** the `challenge_id` field SHALL NOT carry an `#[allow(dead_code)]` attribute
+- **AND** it SHALL be actively read and compared during `load_pool`
+
 
 <!-- @trace
-source: secure-challenge-pools
-updated: 2026-04-02
+source: harden-prod-pool-runner
+updated: 2026-04-04
 code:
-  - testcase-generator/src/lib.rs
+  - .vitepress/theme/composables/useRemoteChallenge.ts
   - testcase-generator/src/pool.rs
-  - testcase-generator/Cargo.toml
-  - .vitepress/plugins/strip-generator.ts
+  - README.md
+  - .vitepress/theme/workers/pyodide.worker.ts
   - testcase-generator/src/judge.rs
-  - scripts/generate-key-material.ts
+  - .vitepress/plugins/strip-generator.ts
+  - tsconfig.app.json
   - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/composables/useChallengeRunner.ts
+  - tsconfig.node.json
+  - testcase-generator/src/lib.rs
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - requirements.txt
   - package.json
-  - .vitepress/config.mts
-  - testcase-generator/src/crypto.rs
+  - .vitepress/theme/composables/useChallengeRunner.ts
   - scripts/generate-pools.ts
-  - scripts/pool-key.ts
+  - .github/workflows/release.yml
+  - scripts/generate-key-material.ts
 tests:
   - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
 -->
 
 ---
 ### Requirement: WASM module selects random testcases with session tracking
 
-The WASM module SHALL export a `select_testcases(challenge_id: &str, count: usize)` function that randomly selects `count` testcases from the loaded pool. It SHALL return a JSON object `{inputs: string[], session_id: string}` where `inputs` contains only the input strings (NOT expected outputs) and `session_id` is a unique identifier for this selection. The session data (selected indices and expected outputs) SHALL be retained in WASM memory for subsequent judging.
+The WASM module SHALL export a `select_testcases(challenge_id: &str, count: usize)` function that randomly selects `count` testcases from the loaded pool. It SHALL return a JSON object `{inputs: string[], session_id: string, verdict_detail: string}` where `inputs` contains only the input strings (NOT expected outputs), `session_id` is a unique identifier for this selection, and `verdict_detail` is the pool's verdict detail setting (`"hidden"`, `"actual"`, or `"full"`). The session data (selected indices and expected outputs) SHALL be retained in WASM memory for subsequent judging.
+
+The `verdict_detail` field in the return value SHALL reflect the value embedded in the encrypted pool payload at generation time. This value is integrity-protected by AES-GCM and SHALL be the authoritative source of truth for production mode display behavior.
 
 #### Scenario: Correct number of inputs returned
 
@@ -67,26 +88,32 @@ The WASM module SHALL export a `select_testcases(challenge_id: &str, count: usiz
 - **WHEN** `select_testcases` is called for a challenge_id that has not been loaded
 - **THEN** the function SHALL return an error
 
+#### Scenario: Return value includes verdict_detail from pool
+
+- **WHEN** `select_testcases` is called on a pool that was generated with `verdict_detail: "actual"`
+- **THEN** the returned JSON SHALL include `verdict_detail: "actual"`
+- **AND** this value SHALL match the `verdict_detail` embedded in the encrypted pool payload
+
+#### Scenario: Default verdict_detail is hidden
+
+- **WHEN** `select_testcases` is called on a pool that was generated without an explicit `verdict_detail`
+- **THEN** the returned JSON SHALL include `verdict_detail: "hidden"`
+
 
 <!-- @trace
-source: secure-challenge-pools
-updated: 2026-04-02
+source: prod-runner-convergence
+updated: 2026-04-04
 code:
-  - testcase-generator/src/lib.rs
-  - testcase-generator/src/pool.rs
-  - testcase-generator/Cargo.toml
-  - .vitepress/plugins/strip-generator.ts
-  - testcase-generator/src/judge.rs
-  - scripts/generate-key-material.ts
-  - .vitepress/theme/views/ChallengeView.vue
+  - .vitepress/theme/workers/pyodide.worker.ts
   - .vitepress/theme/composables/useChallengeRunner.ts
-  - package.json
-  - .vitepress/config.mts
-  - testcase-generator/src/crypto.rs
-  - scripts/generate-pools.ts
-  - scripts/pool-key.ts
+  - testcase-generator/src/pool.rs
+  - .vitepress/theme/views/ChallengeView.vue
+  - testcase-generator/src/lib.rs
+  - testcase-generator/src/judge.rs
 tests:
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
   - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
 -->
 
 ---

@@ -173,7 +173,7 @@ async function handleSubmit() {
                     得分：{{ executorStore.passed }} / {{ executorStore.total }}
                   </span>
                 </div>
-                <TestResultPanel :results="executorStore.results" :status="executorStore.status" :verdict-detail="verdictDetail" />
+                <TestResultPanel :results="executorStore.results" :status="executorStore.status" :verdict-detail="runner.verdictDetail.value" />
               </div>
             </div>
           </template>

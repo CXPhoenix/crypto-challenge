@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'add-execute-mode'. Update Purpose after archive.
+Defines the "Run" execute mode that allows users to run their code against custom stdin input in a modal dialog, separate from the "Submit" judge flow. Includes the `ExecuteRequest` Worker protocol, `RunModal` UI, split button layout, and the `useExecutor` composable with wall-clock timeout.
 
 ## Requirements
 

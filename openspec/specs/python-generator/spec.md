@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'markdown-panel-and-python-generator'. Update Purpose after archive.
+Defines the Python-based challenge generator system where frontmatter contains a Python script that produces expected outputs from WASM-generated random inputs. Supports both standard mode (stdin/stdout) and factory mode (JSON self-contained input/output generation). Also specifies the Rust WASM random input generation, Pyodide Worker generator execution, ChallengeView orchestration, and the `RunOnlyRequest` production message protocol.
 
 ## Requirements
 
@@ -18,6 +18,8 @@ The generator script SHALL operate in one of two modes:
 
 Factory mode SHALL be used when the challenge requires cross-parameter constraints that the WASM `ParamSpec` system does not support (e.g., prime numbers, coprimality requirements, relative value constraints between parameters).
 
+The frontend codebase SHALL NOT contain any composable, utility, or loader that references TOML-based challenge metadata formats or the removed `parseChallengeMeta` API. Any such dead code SHALL be deleted to maintain type-checking integrity.
+
 #### Scenario: ChallengeView reads generator from frontmatter
 
 - **WHEN** a challenge page loads
@@ -28,22 +30,38 @@ Factory mode SHALL be used when the challenge requires cross-parameter constrain
 - **WHEN** a challenge page loads and `frontmatter.generator` is undefined or empty
 - **THEN** the challenge page displays an error state indicating the generator is missing
 
-#### Scenario: Factory mode generator outputs JSON with transformed input
+#### Scenario: No TOML loader exists in the codebase
 
-- **WHEN** a generator script prints a JSON string `{"input": "61\n53\n17\n65", "expected_output": "3233 2753 2790"}` to stdout
-- **THEN** the orchestration layer (dev Worker or pool generator) SHALL use the JSON `input` field as the student-facing input and the `expected_output` field as the expected output, discarding the original WASM-generated stdin
-
-#### Scenario: Factory mode generator produces mathematically valid RSA parameters
-
-- **WHEN** the RSA basic challenge generator runs in factory mode
-- **THEN** the generated input SHALL contain prime p and q (in [10, 97]), a public exponent e coprime with phi=(p-1)(q-1), and plaintext m in [0, n-1], ensuring `pow(e, -1, phi)` SHALL NOT raise an error
+- **WHEN** the codebase is searched for composables importing `parseChallengeMeta` or globbing `*.toml` challenge files
+- **THEN** zero results SHALL be found
 
 
 <!-- @trace
-source: fix-rsa-basic-generator
-updated: 2026-04-03
+source: restore-build-and-static-verification
+updated: 2026-04-04
 code:
-  - docs/challenge/rsa-basic.md
+  - .vitepress/theme/views/ChallengeView.vue
+  - requirements.txt
+  - .vitepress/theme/composables/useChallengeRunner.ts
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - scripts/generate-key-material.ts
+  - .vitepress/theme/composables/useRemoteChallenge.ts
+  - testcase-generator/src/judge.rs
+  - testcase-generator/src/lib.rs
+  - tsconfig.node.json
+  - package.json
+  - testcase-generator/src/pool.rs
+  - tsconfig.app.json
+  - README.md
+  - .vitepress/theme/workers/pyodide.worker.ts
+  - scripts/generate-pools.ts
+  - .github/workflows/release.yml
+  - .vitepress/plugins/strip-generator.ts
+tests:
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
 -->
 
 ---
@@ -202,57 +220,15 @@ source: markdown-panel-and-python-generator
 updated: 2026-03-13
 code:
   - docs/index.md
-  - .vitepress/theme/challenges/13-aes-ecb-decrypt.toml
   - .vitepress/theme/components/challenge/ProblemPanel.vue
-  - docs/challenge/rsa-decrypt.md
-  - challenge-generator/src/algorithms/vigenere.rs
-  - .vitepress/theme/challenges/08-railfence-decrypt.toml
-  - .vitepress/theme/challenges/09-xor.toml
-  - docs/challenge/playfair-encrypt.md
-  - .vitepress/theme/challenges/01-caesar-encrypt.toml
-  - docs/challenge/xor-encrypt.md
   - .vitepress/theme/Layout.vue
-  - challenge-generator/src/algorithms/playfair.rs
-  - .vitepress/theme/challenges/02-caesar-decrypt.toml
-  - challenge-generator/src/lib.rs
-  - .vitepress/theme/challenges/12-aes-ecb-encrypt.toml
-  - .vitepress/theme/challenges/06-playfair-decrypt.toml
-  - .vitepress/theme/challenges/14-simple-ecb-encrypt.toml
-  - challenge-generator/src/algorithms/railfence.rs
-  - challenge-generator/src/parser.rs
-  - .vitepress/theme/challenges/11-rsa-decrypt.toml
-  - docs/challenge/vigenere-decrypt.md
-  - challenge-generator/src/template.rs
-  - .vitepress/theme/challenges/15-simple-ecb-decrypt.toml
   - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/challenges/07-railfence-encrypt.toml
-  - docs/challenge/simple-ecb-decrypt.md
-  - .vitepress/theme/challenges/10-rsa-encrypt.toml
-  - docs/challenge/playfair-decrypt.md
   - .vitepress/theme/composables/useWasm.ts
-  - .vitepress/theme/challenges/05-playfair-encrypt.toml
-  - docs/challenge/aes-ecb-decrypt.md
-  - docs/challenge/vigenere-encrypt.md
-  - challenge-generator/Cargo.toml
-  - docs/challenge/rsa-encrypt.md
-  - challenge-generator/src/algorithms/caesar.rs
-  - docs/challenge/railfence-encrypt.md
-  - docs/challenge/caesar-encrypt.md
-  - docs/challenge/railfence-decrypt.md
-  - challenge-generator/src/algorithms/aes.rs
-  - docs/challenge/caesar-decrypt.md
-  - challenge-generator/src/algorithms/rsa.rs
-  - challenge-generator/src/algorithms/xor.rs
-  - challenge-generator/src/rng.rs
-  - docs/challenge/aes-ecb-encrypt.md
   - .vitepress/theme/stores/challenge.ts
   - .vitepress/theme/workers/pyodide.worker.ts
-  - docs/challenge/simple-ecb-encrypt.md
+  - docs/challenge/vigenere-encrypt.md
   - package.json
-  - challenge-generator/src/algorithms/mod.rs
-  - .vitepress/theme/challenges/03-vigenere-encrypt.toml
   - docs/shared/challenge.data.ts
-  - .vitepress/theme/challenges/04-vigenere-decrypt.toml
 tests:
   - .vitepress/theme/__tests__/useWasm.spec.ts
   - .vitepress/theme/__tests__/challenge.store.spec.ts
@@ -262,14 +238,44 @@ tests:
 ---
 ### Requirement: RunRequest does not carry expected_output in production mode
 
-In production mode, the `RunRequest` message sent to the Pyodide Worker SHALL contain `code: string` and `inputs: string[]` only. It SHALL NOT contain an `expected_output` field, a `testcases` array with expected outputs, or a `verdictDetail` field. The Worker SHALL return raw execution results `{stdout: string, error?: string, elapsed_ms: number}[]` without computing verdicts.
+In production mode, the Pyodide Worker SHALL support a `RunOnlyRequest` message type with the following interface:
 
-In development mode, the `RunRequest` message SHALL retain the current format with `testcases: Array<{ input: string; expected_output: string }>` and `verdictDetail` for backward compatibility.
+```typescript
+interface RunOnlyRequest {
+  type: 'run_only'
+  code: string
+  inputs: string[]
+  opLimit?: number
+}
+```
 
-#### Scenario: Production RunRequest contains only code and inputs
+When the Worker receives a `RunOnlyRequest`, it SHALL execute the student code against each input and return results in the following format:
+
+- For each input: a `testcase_result` message with `{type: 'testcase_result', index: number, stdout: string, error?: string, elapsed_ms: number}`
+- After all inputs: a `run_complete` message with `{type: 'run_complete'}`
+
+The Worker SHALL NOT perform verdict computation, output comparison, or data stripping when handling `RunOnlyRequest`. It SHALL NOT accept or process a `verdictDetail` field. The `opLimit` field SHALL default to `10_000_000` bytecode operations per testcase if omitted.
+
+In development mode, the existing `RunRequest` message type SHALL be preserved with `testcases: Array<{ input: string; expected_output: string }>` and `verdictDetail` for backward compatibility.
+
+The Worker SHALL distinguish between the two message types by the `type` field: `'run'` for `RunRequest` (dev mode) and `'run_only'` for `RunOnlyRequest` (prod mode).
+
+#### Scenario: Production sends RunOnlyRequest to Worker
 
 - **WHEN** a submission occurs in production mode
-- **THEN** the `postMessage` to the Worker SHALL contain `{type: 'run', code: string, inputs: string[]}` with no `expected_output` or `verdictDetail`
+- **THEN** the `postMessage` to the Worker SHALL contain `{type: 'run_only', code: string, inputs: string[]}` with no `expected_output`, no `testcases` array, and no `verdictDetail`
+
+#### Scenario: Worker returns raw stdout for RunOnlyRequest
+
+- **WHEN** the Worker processes a `RunOnlyRequest` with 3 inputs
+- **THEN** it SHALL emit 3 `testcase_result` messages each containing `stdout`, `elapsed_ms`, and optionally `error`
+- **AND** it SHALL emit a final `run_complete` message
+- **AND** no `testcase_result` message SHALL contain `verdict`, `expected`, or `actual` fields
+
+#### Scenario: RunOnlyRequest respects opLimit
+
+- **WHEN** a `RunOnlyRequest` includes `opLimit: 5_000_000`
+- **THEN** the Worker SHALL terminate execution of any testcase that exceeds 5,000,000 bytecode operations
 
 #### Scenario: Dev RunRequest retains current format
 
@@ -277,22 +283,17 @@ In development mode, the `RunRequest` message SHALL retain the current format wi
 - **THEN** the `postMessage` to the Worker SHALL contain `{type: 'run', code: string, testcases: [{input, expected_output}], verdictDetail}` matching current behavior
 
 <!-- @trace
-source: secure-challenge-pools
-updated: 2026-04-02
+source: prod-runner-convergence
+updated: 2026-04-04
 code:
-  - testcase-generator/src/lib.rs
-  - testcase-generator/src/pool.rs
-  - testcase-generator/Cargo.toml
-  - .vitepress/plugins/strip-generator.ts
-  - testcase-generator/src/judge.rs
-  - scripts/generate-key-material.ts
-  - .vitepress/theme/views/ChallengeView.vue
+  - .vitepress/theme/workers/pyodide.worker.ts
   - .vitepress/theme/composables/useChallengeRunner.ts
-  - package.json
-  - .vitepress/config.mts
-  - testcase-generator/src/crypto.rs
-  - scripts/generate-pools.ts
-  - scripts/pool-key.ts
+  - testcase-generator/src/pool.rs
+  - .vitepress/theme/views/ChallengeView.vue
+  - testcase-generator/src/lib.rs
+  - testcase-generator/src/judge.rs
 tests:
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
   - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
 -->

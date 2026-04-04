@@ -140,7 +140,7 @@ mod tests {
         data.extend_from_slice(&ciphertext);
 
         pool::load_pool(challenge_id, &data).unwrap();
-        let (sid, _) = pool::select_testcases(challenge_id, testcases.len()).unwrap();
+        let (sid, _, _) = pool::select_testcases(challenge_id, testcases.len()).unwrap();
         sid
     }
 

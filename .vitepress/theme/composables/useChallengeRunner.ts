@@ -40,7 +40,7 @@ export interface ChallengeRunner {
   isReady: Ref<boolean>
   isRunning: Ref<boolean>
   errorMessage: Ref<string>
-  verdictDetail: VerdictDetail
+  verdictDetail: Ref<VerdictDetail>
   cleanup(): void
 }
 
@@ -57,7 +57,7 @@ export function resolveVerdictDetail(raw: string | undefined): VerdictDetail {
 type WasmPoolMod = {
   default: () => Promise<void>
   load_pool: (challenge_id: string, data: Uint8Array) => void
-  select_testcases: (challenge_id: string, count: number) => { inputs: string[]; session_id: string }
+  select_testcases: (challenge_id: string, count: number) => { inputs: string[]; session_id: string; verdict_detail: string }
   judge: (challenge_id: string, session_id: string, results: unknown[]) => unknown[]
   get_expected: (challenge_id: string, session_id: string, index: number) => string | null
 }
@@ -107,6 +107,10 @@ function useDevRunner(config: ChallengeConfig): ChallengeRunner {
 
   let localTestcases: Array<{ input: string; expected_output: string }> = []
   let activeWorker: Worker | null = null
+  // Hoisted references for submission worker stop/cancel support
+  let submitWorker: Worker | null = null
+  let submitKillTimerId: ReturnType<typeof setTimeout> | null = null
+  let submitInflightResolve: (() => void) | null = null
 
   async function loadTestcases() {
     if (!config.generator) {
@@ -180,60 +184,93 @@ function useDevRunner(config: ChallengeConfig): ChallengeRunner {
     isRunning.value = true
     executorStore.setRunning(localTestcases.length)
 
-    const worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url), {
-      type: 'module',
-    })
+    await new Promise<void>((resolve) => {
+      const worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url), {
+        type: 'module',
+      })
+      submitWorker = worker
+      submitInflightResolve = resolve
 
-    const totalBudget = localTestcases.length * WALL_CLOCK_KILL_MS
-    const killTimer = setTimeout(() => {
-      worker.terminate()
-      executorStore.setDone(executorStore.totalTestcases, executorStore.passedCount)
-      isRunning.value = false
-    }, totalBudget)
+      function settle() {
+        submitWorker = null
+        submitKillTimerId = null
+        submitInflightResolve = null
+      }
 
-    worker.onmessage = (event: MessageEvent<TestcaseResult | RunComplete>) => {
-      const msg = event.data
-      if (msg.type === 'testcase_result') {
-        executorStore.addResult(msg)
-      } else if (msg.type === 'run_complete') {
-        clearTimeout(killTimer)
-        executorStore.setDone(msg.total, msg.passed)
+      const totalBudget = localTestcases.length * WALL_CLOCK_KILL_MS
+      submitKillTimerId = setTimeout(() => {
+        worker.terminate()
+        executorStore.setDone(executorStore.totalTestcases, executorStore.passedCount)
+        isRunning.value = false
+        settle()
+        resolve()
+      }, totalBudget)
+
+      worker.onmessage = (event: MessageEvent<TestcaseResult | RunComplete>) => {
+        const msg = event.data
+        if (msg.type === 'testcase_result') {
+          executorStore.addResult(msg)
+        } else if (msg.type === 'run_complete') {
+          if (submitKillTimerId !== null) clearTimeout(submitKillTimerId)
+          executorStore.setDone(msg.total, msg.passed)
+          worker.terminate()
+          isRunning.value = false
+          settle()
+          resolve()
+        }
+      }
+
+      worker.onerror = () => {
+        if (submitKillTimerId !== null) clearTimeout(submitKillTimerId)
+        executorStore.setDone(executorStore.totalTestcases, executorStore.passedCount)
         worker.terminate()
         isRunning.value = false
+        settle()
+        resolve()
       }
-    }
 
-    worker.onerror = () => {
-      clearTimeout(killTimer)
-      executorStore.setDone(executorStore.totalTestcases, executorStore.passedCount)
-      worker.terminate()
-      isRunning.value = false
-    }
-
-    const request: RunRequest = {
-      type: 'run',
-      code,
-      testcases: localTestcases.map((tc) => ({
-        input: tc.input,
-        expected_output: tc.expected_output,
-      })),
-      verdictDetail: config.verdictDetail,
-    }
-    worker.postMessage(request)
+      const request: RunRequest = {
+        type: 'run',
+        code,
+        testcases: localTestcases.map((tc) => ({
+          input: tc.input,
+          expected_output: tc.expected_output,
+        })),
+        verdictDetail: config.verdictDetail,
+      }
+      worker.postMessage(request)
+    })
   }
 
   function stop() {
+    // Terminate generator-phase worker if active
     activeWorker?.terminate()
     activeWorker = null
+    // Terminate submission worker and cancel killTimer if in-flight
+    if (submitKillTimerId !== null) {
+      clearTimeout(submitKillTimerId)
+      submitKillTimerId = null
+    }
+    submitWorker?.terminate()
+    submitWorker = null
+    if (submitInflightResolve) {
+      const r = submitInflightResolve
+      submitInflightResolve = null
+      r()
+    }
     isRunning.value = false
   }
 
   function cleanup() {
-    activeWorker?.terminate()
+    stop()
+    // Null out all references to prevent stale callbacks after unmount
     activeWorker = null
+    submitWorker = null
+    submitKillTimerId = null
+    submitInflightResolve = null
   }
 
-  return { loadTestcases, submit, stop, inputs, isReady, isRunning, errorMessage, verdictDetail: config.verdictDetail, cleanup }
+  return { loadTestcases, submit, stop, inputs, isReady, isRunning, errorMessage, verdictDetail: ref(config.verdictDetail) as Ref<VerdictDetail>, cleanup }
 }
 
 // ── Prod Strategy ──────────────────────────────────────────────────────────
@@ -247,9 +284,13 @@ function useProdRunner(config: ChallengeConfig): ChallengeRunner {
   const isReady = ref(false)
   const isRunning = ref(false)
   const errorMessage = ref('')
+  const poolVerdictDetail = ref<VerdictDetail>('hidden')
 
   let sessionId = ''
   let runWorker: Worker | null = null
+  // Hoisted references for stop/cancel support
+  let prodKillTimerId: ReturnType<typeof setTimeout> | null = null
+  let prodInflightResolve: ((value: Array<{ stdout: string; error?: string; elapsed_ms: number }> | null) => void) | null = null
 
   async function loadTestcases() {
     try {
@@ -265,10 +306,11 @@ function useProdRunner(config: ChallengeConfig): ChallengeRunner {
       const wasm = await ensureWasmPool()
       wasm.load_pool(config.algorithm, data)
 
-      // Select testcases
+      // Select testcases — verdict_detail from pool is the source of truth
       const result = wasm.select_testcases(config.algorithm, config.testcaseCount)
       sessionId = result.session_id
       inputs.value = result.inputs
+      poolVerdictDetail.value = resolveVerdictDetail(result.verdict_detail)
 
       // Update store (inputs only, no expected_output in prod)
       challengeStore.setCurrentChallenge({
@@ -325,6 +367,7 @@ function useProdRunner(config: ChallengeConfig): ChallengeRunner {
       const result = wasm.select_testcases(config.algorithm, config.testcaseCount)
       sessionId = result.session_id
       inputs.value = result.inputs
+      poolVerdictDetail.value = resolveVerdictDetail(result.verdict_detail)
     } catch (err) {
       errorMessage.value = `判定失敗: ${err instanceof Error ? err.message : err}`
       executorStore.setDone(inputs.value.length, 0)
@@ -342,13 +385,20 @@ function useProdRunner(config: ChallengeConfig): ChallengeRunner {
         type: 'module',
       })
       runWorker = worker
+      prodInflightResolve = resolve
+
+      function settle() {
+        runWorker = null
+        prodKillTimerId = null
+        prodInflightResolve = null
+      }
 
       const results: Array<{ stdout: string; error?: string; elapsed_ms: number }> = []
       const totalBudget = codeInputs.length * WALL_CLOCK_KILL_MS
 
-      const killTimer = setTimeout(() => {
+      prodKillTimerId = setTimeout(() => {
         worker.terminate()
-        runWorker = null
+        settle()
         resolve(null)
       }, totalBudget)
 
@@ -356,50 +406,58 @@ function useProdRunner(config: ChallengeConfig): ChallengeRunner {
         const msg = event.data
         if (msg.type === 'testcase_result') {
           results.push({
-            stdout: msg.actual ?? '',
+            stdout: msg.stdout ?? '',
             error: msg.error,
             elapsed_ms: msg.elapsed_ms,
           })
         } else if (msg.type === 'run_complete') {
-          clearTimeout(killTimer)
+          if (prodKillTimerId !== null) clearTimeout(prodKillTimerId)
           worker.terminate()
-          runWorker = null
+          settle()
           resolve(results)
         }
       }
 
       worker.onerror = () => {
-        clearTimeout(killTimer)
+        if (prodKillTimerId !== null) clearTimeout(prodKillTimerId)
         worker.terminate()
-        runWorker = null
+        settle()
         resolve(null)
       }
 
-      // In prod mode, we still use the existing RunRequest format with
-      // expected_output set to empty string — the Worker does comparison
-      // but the verdicts are discarded; we use WASM judge instead.
-      // A cleaner approach would be a dedicated 'run_only' message type,
-      // but for now this avoids changing the Worker protocol for prod.
-      const request: RunRequest = {
-        type: 'run',
+      worker.postMessage({
+        type: 'run_only',
         code,
-        testcases: codeInputs.map((input) => ({ input, expected_output: '' })),
-        verdictDetail: 'actual', // get actual output back
-      }
-      worker.postMessage(request)
+        inputs: codeInputs,
+      })
     })
   }
 
   function stop() {
+    // Cancel killTimer if in-flight
+    if (prodKillTimerId !== null) {
+      clearTimeout(prodKillTimerId)
+      prodKillTimerId = null
+    }
+    // Terminate worker
     runWorker?.terminate()
     runWorker = null
+    // Settle in-flight Promise with null (aborted)
+    if (prodInflightResolve) {
+      const r = prodInflightResolve
+      prodInflightResolve = null
+      r(null)
+    }
     isRunning.value = false
   }
 
   function cleanup() {
-    runWorker?.terminate()
+    stop()
+    // Null out all references to prevent stale callbacks after unmount
     runWorker = null
+    prodKillTimerId = null
+    prodInflightResolve = null
   }
 
-  return { loadTestcases, submit, stop, inputs, isReady, isRunning, errorMessage, verdictDetail: config.verdictDetail, cleanup }
+  return { loadTestcases, submit, stop, inputs, isReady, isRunning, errorMessage, verdictDetail: poolVerdictDetail, cleanup }
 }

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by syncing change 'extend-paramspec-enum-faker'. Update Purpose after archive.
+Extends the `ParamSpec` system with an `Enum` variant for selecting from a fixed list of values and a `Faker` variant (behind a Cargo feature flag) for generating realistic fake data such as names, emails, and cities using the `fake` crate.
 
 ## Requirements
 

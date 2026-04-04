@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'secure-challenge-pools'. Update Purpose after archive.
+Defines a VitePress/Vite plugin that strips the `generator` field from challenge Markdown frontmatter during production builds, preventing Python generator source code from being included in the client bundle. The plugin is inactive in development mode so the dev strategy can access generator code at runtime.
 
 ## Requirements
 

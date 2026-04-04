@@ -53,19 +53,26 @@ pub fn load_pool(challenge_id: &str, encrypted_data: &[u8]) -> Result<(), JsErro
 /// Select random testcases from a loaded pool.
 ///
 /// # Returns
-/// `{ inputs: string[], session_id: string }` — inputs only, no expected outputs.
+/// `{ inputs: string[], session_id: string, verdict_detail: string }` — inputs only, no expected outputs.
 #[wasm_bindgen]
 pub fn select_testcases(challenge_id: &str, count: usize) -> Result<JsValue, JsError> {
-    let (session_id, inputs) =
+    let (session_id, inputs, verdict_detail) =
         pool::select_testcases(challenge_id, count).map_err(|e| JsError::new(&e))?;
 
     #[derive(Serialize)]
     struct SelectResult {
         inputs: Vec<String>,
         session_id: String,
+        verdict_detail: String,
     }
 
-    let result = SelectResult { inputs, session_id };
+    let vd_str = match verdict_detail {
+        pool::VerdictDetail::Hidden => "hidden",
+        pool::VerdictDetail::Actual => "actual",
+        pool::VerdictDetail::Full => "full",
+    };
+
+    let result = SelectResult { inputs, session_id, verdict_detail: vd_str.to_string() };
     serde_wasm_bindgen::to_value(&result).map_err(|e| JsError::new(&e.to_string()))
 }
 
