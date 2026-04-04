@@ -96,7 +96,7 @@ When `import.meta.env.MODE === 'production'`, the composable SHALL use the produ
 1. Fetch the encrypted pool file from `/pools/<algorithm>.bin`
 2. Call WASM `load_pool(challenge_id, data)` to decrypt
 3. Call WASM `select_testcases(challenge_id, count)` to get `{inputs, session_id, verdict_detail}` and store the returned `verdict_detail` as the authoritative display setting
-4. On `submit()`, spawn a Pyodide Worker with a `RunOnlyRequest` message containing `{type: 'run_only', code, inputs}` — no `expected_output`, no `verdictDetail`, no `testcases` array
+4. On `submit()`, spawn a Pyodide Worker with a `RunOnlyRequest` message containing `{type: 'run_only', code, inputs}` — no `expected_output`, no `verdictDetail`, no `testcases` array. The `inputs` array passed via `postMessage` SHALL be a plain JavaScript Array (e.g. created via spread operator or `Array.from`), NOT a Vue reactive Proxy or WASM-backed object, to ensure compatibility with the browser's structured clone algorithm.
 5. Collect Worker raw stdout outputs
 6. Call WASM `judge(challenge_id, session_id, outputs)` to obtain verdicts
 
@@ -119,6 +119,12 @@ The composable SHALL expose `verdictDetail` as a reactive value sourced from the
 - **WHEN** `submit()` is called in production mode
 - **THEN** the Worker SHALL receive a `RunOnlyRequest` message with `{type: 'run_only', code, inputs}` containing no `expected_output`, no `verdictDetail`, and no `testcases` array
 
+#### Scenario: Prod mode inputs passed to Worker are structured-clone-compatible
+
+- **WHEN** the prod runner calls `postMessage` to send a `RunOnlyRequest` to the Pyodide Worker
+- **THEN** the `inputs` field SHALL be a plain JavaScript Array of strings, NOT a Vue reactive Proxy or WASM-returned object
+- **AND** the `postMessage` call SHALL NOT throw a `DataCloneError`
+
 #### Scenario: Prod mode verdictDetail comes from pool
 
 - **WHEN** the production strategy calls `select_testcases` and receives `verdict_detail: "actual"` from the pool
@@ -132,18 +138,11 @@ The composable SHALL expose `verdictDetail` as a reactive value sourced from the
 
 
 <!-- @trace
-source: prod-runner-convergence
+source: fix-prod-runner-postmessage-clone
 updated: 2026-04-04
 code:
-  - .vitepress/theme/workers/pyodide.worker.ts
   - .vitepress/theme/composables/useChallengeRunner.ts
-  - testcase-generator/src/pool.rs
-  - .vitepress/theme/views/ChallengeView.vue
-  - testcase-generator/src/lib.rs
-  - testcase-generator/src/judge.rs
 tests:
-  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
-  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
   - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
 -->
 

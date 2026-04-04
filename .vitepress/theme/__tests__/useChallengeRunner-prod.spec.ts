@@ -149,6 +149,61 @@ describe('useChallengeRunner prod path - verdictDetail from pool', () => {
 
     await submitPromise
   })
+
+  it('inputs passed to Worker postMessage are a plain Array copy, not the WASM-returned reference', async () => {
+    const { useChallengeRunner } = await import('../composables/useChallengeRunner')
+
+    // Capture the exact array object returned by select_testcases
+    const wasmInputsRef = ['1\n', '2\n']
+    mockSelectTestcases.mockReturnValue({
+      inputs: wasmInputsRef,
+      session_id: 's_1',
+      verdict_detail: 'actual',
+    })
+
+    mockJudge.mockReturnValue([
+      { verdict: 'AC', elapsed_ms: 10 },
+      { verdict: 'AC', elapsed_ms: 12 },
+    ])
+
+    const runner = useChallengeRunner({
+      algorithm: 'caesar_encrypt',
+      params: {},
+      generator: '',
+      testcaseCount: 2,
+      starterCode: '',
+      verdictDetail: 'hidden',
+    })
+
+    await runner.loadTestcases()
+
+    const submitPromise = runner.submit('print(42)')
+    await new Promise((r) => setTimeout(r, 0))
+
+    const submitWorker = mockWorkerInstances[mockWorkerInstances.length - 1]!
+    const postedInputs = submitWorker.postMessage.mock.calls[0]?.[0]?.inputs
+
+    // Must be a plain Array with correct values
+    expect(Array.isArray(postedInputs)).toBe(true)
+    expect(postedInputs).toEqual(['1\n', '2\n'])
+    // Must NOT be the same object reference (should be a spread copy)
+    expect(postedInputs).not.toBe(wasmInputsRef)
+
+    // Let worker complete
+    if (submitWorker.onmessage) {
+      submitWorker.onmessage(new MessageEvent('message', {
+        data: { type: 'testcase_result', index: 0, stdout: '42\n', elapsed_ms: 10 },
+      }))
+      submitWorker.onmessage(new MessageEvent('message', {
+        data: { type: 'testcase_result', index: 1, stdout: '42\n', elapsed_ms: 12 },
+      }))
+      submitWorker.onmessage(new MessageEvent('message', {
+        data: { type: 'run_complete' },
+      }))
+    }
+
+    await submitPromise
+  })
 })
 
 // ── Prod runner stop/cancel tests ──────────────────────────────────────────

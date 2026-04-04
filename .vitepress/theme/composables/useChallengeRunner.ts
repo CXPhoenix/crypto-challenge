@@ -428,7 +428,7 @@ function useProdRunner(config: ChallengeConfig): ChallengeRunner {
       worker.postMessage({
         type: 'run_only',
         code,
-        inputs: codeInputs,
+        inputs: [...codeInputs],
       })
     })
   }
