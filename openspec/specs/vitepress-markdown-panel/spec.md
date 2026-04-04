@@ -2,13 +2,15 @@
 
 ## Purpose
 
-TBD - created by archiving change 'markdown-panel-and-python-generator'. Update Purpose after archive.
+Defines the VitePress-based challenge page layout where challenge pages use a custom `layout: challenge` in frontmatter, the left panel renders native VitePress markdown via the `<Content />` component, and all challenge metadata resides entirely in frontmatter with no external TOML files.
 
 ## Requirements
 
 ### Requirement: Challenge pages use custom VitePress layout
 
 Challenge markdown pages SHALL set `layout: challenge` in frontmatter instead of `layout: false`. The VitePress `Layout.vue` SHALL render `ChallengeView` when `frontmatter.layout === 'challenge'`, bypassing the DefaultTheme layout. The `ChallengeView` component SHALL be registered as the layout entry point, not as inline page content.
+
+Challenge page data SHALL be sourced exclusively from Markdown frontmatter. The active codebase SHALL NOT contain any loader or composable that references TOML-based challenge files (`*.toml`) or the removed `parseChallengeMeta` WASM export.
 
 #### Scenario: Challenge page renders with custom layout
 
@@ -20,67 +22,38 @@ Challenge markdown pages SHALL set `layout: challenge` in frontmatter instead of
 - **WHEN** a user navigates to any page without `layout: challenge`
 - **THEN** `Layout.vue` renders the DefaultTheme layout as before
 
+#### Scenario: No TOML-era challenge loader exists
+
+- **WHEN** the codebase is searched for composables that import TOML challenge files via `import.meta.glob`
+- **THEN** zero results SHALL be found
+
 
 <!-- @trace
-source: markdown-panel-and-python-generator
-updated: 2026-03-13
+source: restore-build-and-static-verification
+updated: 2026-04-04
 code:
-  - docs/index.md
-  - .vitepress/theme/challenges/13-aes-ecb-decrypt.toml
-  - .vitepress/theme/components/challenge/ProblemPanel.vue
-  - docs/challenge/rsa-decrypt.md
-  - challenge-generator/src/algorithms/vigenere.rs
-  - .vitepress/theme/challenges/08-railfence-decrypt.toml
-  - .vitepress/theme/challenges/09-xor.toml
-  - docs/challenge/playfair-encrypt.md
-  - .vitepress/theme/challenges/01-caesar-encrypt.toml
-  - docs/challenge/xor-encrypt.md
-  - .vitepress/theme/Layout.vue
-  - challenge-generator/src/algorithms/playfair.rs
-  - .vitepress/theme/challenges/02-caesar-decrypt.toml
-  - challenge-generator/src/lib.rs
-  - .vitepress/theme/challenges/12-aes-ecb-encrypt.toml
-  - .vitepress/theme/challenges/06-playfair-decrypt.toml
-  - .vitepress/theme/challenges/14-simple-ecb-encrypt.toml
-  - challenge-generator/src/algorithms/railfence.rs
-  - challenge-generator/src/parser.rs
-  - .vitepress/theme/challenges/11-rsa-decrypt.toml
-  - docs/challenge/vigenere-decrypt.md
-  - challenge-generator/src/template.rs
-  - .vitepress/theme/challenges/15-simple-ecb-decrypt.toml
   - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/challenges/07-railfence-encrypt.toml
-  - docs/challenge/simple-ecb-decrypt.md
-  - .vitepress/theme/challenges/10-rsa-encrypt.toml
-  - docs/challenge/playfair-decrypt.md
-  - .vitepress/theme/composables/useWasm.ts
-  - .vitepress/theme/challenges/05-playfair-encrypt.toml
-  - docs/challenge/aes-ecb-decrypt.md
-  - docs/challenge/vigenere-encrypt.md
-  - challenge-generator/Cargo.toml
-  - docs/challenge/rsa-encrypt.md
-  - challenge-generator/src/algorithms/caesar.rs
-  - docs/challenge/railfence-encrypt.md
-  - docs/challenge/caesar-encrypt.md
-  - docs/challenge/railfence-decrypt.md
-  - challenge-generator/src/algorithms/aes.rs
-  - docs/challenge/caesar-decrypt.md
-  - challenge-generator/src/algorithms/rsa.rs
-  - challenge-generator/src/algorithms/xor.rs
-  - challenge-generator/src/rng.rs
-  - docs/challenge/aes-ecb-encrypt.md
-  - .vitepress/theme/stores/challenge.ts
-  - .vitepress/theme/workers/pyodide.worker.ts
-  - docs/challenge/simple-ecb-encrypt.md
+  - requirements.txt
+  - .vitepress/theme/composables/useChallengeRunner.ts
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - scripts/generate-key-material.ts
+  - .vitepress/theme/composables/useRemoteChallenge.ts
+  - testcase-generator/src/judge.rs
+  - testcase-generator/src/lib.rs
+  - tsconfig.node.json
   - package.json
-  - challenge-generator/src/algorithms/mod.rs
-  - .vitepress/theme/challenges/03-vigenere-encrypt.toml
-  - docs/shared/challenge.data.ts
-  - .vitepress/theme/challenges/04-vigenere-decrypt.toml
+  - testcase-generator/src/pool.rs
+  - tsconfig.app.json
+  - README.md
+  - .vitepress/theme/workers/pyodide.worker.ts
+  - scripts/generate-pools.ts
+  - .github/workflows/release.yml
+  - .vitepress/plugins/strip-generator.ts
 tests:
-  - .vitepress/theme/__tests__/useWasm.spec.ts
-  - .vitepress/theme/__tests__/challenge.store.spec.ts
-  - .vitepress/theme/__tests__/pyodide-worker-generate.spec.ts
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
 -->
 
 ---
@@ -104,57 +77,15 @@ source: markdown-panel-and-python-generator
 updated: 2026-03-13
 code:
   - docs/index.md
-  - .vitepress/theme/challenges/13-aes-ecb-decrypt.toml
   - .vitepress/theme/components/challenge/ProblemPanel.vue
-  - docs/challenge/rsa-decrypt.md
-  - challenge-generator/src/algorithms/vigenere.rs
-  - .vitepress/theme/challenges/08-railfence-decrypt.toml
-  - .vitepress/theme/challenges/09-xor.toml
-  - docs/challenge/playfair-encrypt.md
-  - .vitepress/theme/challenges/01-caesar-encrypt.toml
-  - docs/challenge/xor-encrypt.md
   - .vitepress/theme/Layout.vue
-  - challenge-generator/src/algorithms/playfair.rs
-  - .vitepress/theme/challenges/02-caesar-decrypt.toml
-  - challenge-generator/src/lib.rs
-  - .vitepress/theme/challenges/12-aes-ecb-encrypt.toml
-  - .vitepress/theme/challenges/06-playfair-decrypt.toml
-  - .vitepress/theme/challenges/14-simple-ecb-encrypt.toml
-  - challenge-generator/src/algorithms/railfence.rs
-  - challenge-generator/src/parser.rs
-  - .vitepress/theme/challenges/11-rsa-decrypt.toml
-  - docs/challenge/vigenere-decrypt.md
-  - challenge-generator/src/template.rs
-  - .vitepress/theme/challenges/15-simple-ecb-decrypt.toml
   - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/challenges/07-railfence-encrypt.toml
-  - docs/challenge/simple-ecb-decrypt.md
-  - .vitepress/theme/challenges/10-rsa-encrypt.toml
-  - docs/challenge/playfair-decrypt.md
   - .vitepress/theme/composables/useWasm.ts
-  - .vitepress/theme/challenges/05-playfair-encrypt.toml
-  - docs/challenge/aes-ecb-decrypt.md
-  - docs/challenge/vigenere-encrypt.md
-  - challenge-generator/Cargo.toml
-  - docs/challenge/rsa-encrypt.md
-  - challenge-generator/src/algorithms/caesar.rs
-  - docs/challenge/railfence-encrypt.md
-  - docs/challenge/caesar-encrypt.md
-  - docs/challenge/railfence-decrypt.md
-  - challenge-generator/src/algorithms/aes.rs
-  - docs/challenge/caesar-decrypt.md
-  - challenge-generator/src/algorithms/rsa.rs
-  - challenge-generator/src/algorithms/xor.rs
-  - challenge-generator/src/rng.rs
-  - docs/challenge/aes-ecb-encrypt.md
   - .vitepress/theme/stores/challenge.ts
   - .vitepress/theme/workers/pyodide.worker.ts
-  - docs/challenge/simple-ecb-encrypt.md
+  - docs/challenge/vigenere-encrypt.md
   - package.json
-  - challenge-generator/src/algorithms/mod.rs
-  - .vitepress/theme/challenges/03-vigenere-encrypt.toml
   - docs/shared/challenge.data.ts
-  - .vitepress/theme/challenges/04-vigenere-decrypt.toml
 tests:
   - .vitepress/theme/__tests__/useWasm.spec.ts
   - .vitepress/theme/__tests__/challenge.store.spec.ts
@@ -186,57 +117,15 @@ source: markdown-panel-and-python-generator
 updated: 2026-03-13
 code:
   - docs/index.md
-  - .vitepress/theme/challenges/13-aes-ecb-decrypt.toml
   - .vitepress/theme/components/challenge/ProblemPanel.vue
-  - docs/challenge/rsa-decrypt.md
-  - challenge-generator/src/algorithms/vigenere.rs
-  - .vitepress/theme/challenges/08-railfence-decrypt.toml
-  - .vitepress/theme/challenges/09-xor.toml
-  - docs/challenge/playfair-encrypt.md
-  - .vitepress/theme/challenges/01-caesar-encrypt.toml
-  - docs/challenge/xor-encrypt.md
   - .vitepress/theme/Layout.vue
-  - challenge-generator/src/algorithms/playfair.rs
-  - .vitepress/theme/challenges/02-caesar-decrypt.toml
-  - challenge-generator/src/lib.rs
-  - .vitepress/theme/challenges/12-aes-ecb-encrypt.toml
-  - .vitepress/theme/challenges/06-playfair-decrypt.toml
-  - .vitepress/theme/challenges/14-simple-ecb-encrypt.toml
-  - challenge-generator/src/algorithms/railfence.rs
-  - challenge-generator/src/parser.rs
-  - .vitepress/theme/challenges/11-rsa-decrypt.toml
-  - docs/challenge/vigenere-decrypt.md
-  - challenge-generator/src/template.rs
-  - .vitepress/theme/challenges/15-simple-ecb-decrypt.toml
   - .vitepress/theme/views/ChallengeView.vue
-  - .vitepress/theme/challenges/07-railfence-encrypt.toml
-  - docs/challenge/simple-ecb-decrypt.md
-  - .vitepress/theme/challenges/10-rsa-encrypt.toml
-  - docs/challenge/playfair-decrypt.md
   - .vitepress/theme/composables/useWasm.ts
-  - .vitepress/theme/challenges/05-playfair-encrypt.toml
-  - docs/challenge/aes-ecb-decrypt.md
-  - docs/challenge/vigenere-encrypt.md
-  - challenge-generator/Cargo.toml
-  - docs/challenge/rsa-encrypt.md
-  - challenge-generator/src/algorithms/caesar.rs
-  - docs/challenge/railfence-encrypt.md
-  - docs/challenge/caesar-encrypt.md
-  - docs/challenge/railfence-decrypt.md
-  - challenge-generator/src/algorithms/aes.rs
-  - docs/challenge/caesar-decrypt.md
-  - challenge-generator/src/algorithms/rsa.rs
-  - challenge-generator/src/algorithms/xor.rs
-  - challenge-generator/src/rng.rs
-  - docs/challenge/aes-ecb-encrypt.md
   - .vitepress/theme/stores/challenge.ts
   - .vitepress/theme/workers/pyodide.worker.ts
-  - docs/challenge/simple-ecb-encrypt.md
+  - docs/challenge/vigenere-encrypt.md
   - package.json
-  - challenge-generator/src/algorithms/mod.rs
-  - .vitepress/theme/challenges/03-vigenere-encrypt.toml
   - docs/shared/challenge.data.ts
-  - .vitepress/theme/challenges/04-vigenere-decrypt.toml
 tests:
   - .vitepress/theme/__tests__/useWasm.spec.ts
   - .vitepress/theme/__tests__/challenge.store.spec.ts

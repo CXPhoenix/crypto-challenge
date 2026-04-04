@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'lazy-testcase-gen-non-blocking-ui'. Update Purpose after archive.
+Defines the user-adjustable drag handle between the code editor and the bottom panel in `ChallengeView`, allowing users to resize the `TestResultPanel` height within min/max constraints. The `TestResultPanel` itself no longer manages its own height.
 
 ## Requirements
 

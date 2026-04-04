@@ -1,3 +1,9 @@
+# release-convention Specification
+
+## Purpose
+
+Defines the project's release conventions: semantic versioning in `package.json` following SemVer 2.0.0, and a `CHANGELOG.md` file maintained in Keep a Changelog format with categorized change entries for each version.
+
 ## ADDED Requirements
 
 ### Requirement: Semantic version in package.json

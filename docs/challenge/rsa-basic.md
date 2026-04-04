@@ -7,32 +7,26 @@ tags: ["modern", "asymmetric", "math", "encrypt"]
 algorithm: rsa_basic
 testcase_count: 8
 params:
-  p:
+  # Factory generator：以下 params 僅用於驅動生成次數，實際輸入由 generator 自行產生
+  _seed:
     type: int
-    prime: true
-    min: 10
-    max: 97
-  q:
-    type: int
-    prime: true
-    min: 10
-    max: 97
-  e:
-    type: int
-    valid_public_exponent: true
-  m:
-    type: int
-    less_than: n
+    min: 0
+    max: 999999
 generator: |
-  p = int(input())
-  q = int(input())
-  e = int(input())
-  m = int(input())
+  import random, math, json
+  primes = [11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
+  p = random.choice(primes)
+  q = random.choice(primes)
   n = p * q
   phi = (p - 1) * (q - 1)
+  while True:
+      e = random.randint(2, phi - 1)
+      if math.gcd(e, phi) == 1:
+          break
+  m = random.randint(0, n - 1)
   d = pow(e, -1, phi)
   c = pow(m, e, n)
-  print(f"{n} {d} {c}")
+  print(json.dumps({"input": f"{p}\n{q}\n{e}\n{m}", "expected_output": f"{n} {d} {c}"}))
 starter_code: |
   p = int(input())
   q = int(input())

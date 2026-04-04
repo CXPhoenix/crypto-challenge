@@ -1,3 +1,9 @@
+# csp-policy Specification
+
+## Purpose
+
+Defines the Content Security Policy (CSP) meta tag configuration for the VitePress site, restricting script, worker, network, and default resource sources to same-origin. The policy enables WASM execution and inline scripts while blocking external origins and `unsafe-eval`.
+
 ## ADDED Requirements
 
 ### Requirement: CSP meta tag is present in all built pages

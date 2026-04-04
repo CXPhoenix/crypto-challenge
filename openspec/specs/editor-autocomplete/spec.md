@@ -1,3 +1,9 @@
+# editor-autocomplete Specification
+
+## Purpose
+
+Defines the CodeMirror editor's autocompletion and bracket auto-closing behavior for Python code. Includes Python keyword and builtin completions, document-local identifier completions, standard library symbol completions with module detail, automatic completion triggering, and bracket auto-closing for parentheses, brackets, and braces.
+
 ### Requirement: Python keyword and builtin autocompletion
 
 The editor SHALL provide autocompletion for Python keywords (e.g., `if`, `for`, `def`, `class`, `return`) and built-in functions (e.g., `print`, `len`, `range`, `int`, `str`) sourced from `@codemirror/lang-python`.
@@ -17,16 +23,12 @@ The editor SHALL provide autocompletion for Python keywords (e.g., `if`, `for`, 
 source: codemirror-autocomplete
 updated: 2026-03-16
 code:
-  - docs/challenge/caesar-03.md
   - docs/challenge/caesar-basic.md
-  - docs/challenge/caesar-02.md
-  - .vitepress/theme/components/editor/CodeEditor.vue
+  - docs/challenge/caesar-advanced.md
   - docs/challenge/caesar-custom-table.md
-  - docs/challenge/caesar-01.md
+  - .vitepress/theme/components/editor/CodeEditor.vue
   - .vitepress/theme/composables/pythonCompletions.ts
   - package.json
-  - docs/challenge/caesar-advanced.md
-  - docs/superpowers/specs/2026-03-16-codemirror-autocomplete-design.md
 tests:
   - .vitepress/theme/__tests__/pythonCompletions.spec.ts
   - .vitepress/theme/__tests__/CodeEditor.spec.ts
@@ -46,16 +48,12 @@ The editor SHALL scan the current document and offer completions for identifiers
 source: codemirror-autocomplete
 updated: 2026-03-16
 code:
-  - docs/challenge/caesar-03.md
   - docs/challenge/caesar-basic.md
-  - docs/challenge/caesar-02.md
-  - .vitepress/theme/components/editor/CodeEditor.vue
+  - docs/challenge/caesar-advanced.md
   - docs/challenge/caesar-custom-table.md
-  - docs/challenge/caesar-01.md
+  - .vitepress/theme/components/editor/CodeEditor.vue
   - .vitepress/theme/composables/pythonCompletions.ts
   - package.json
-  - docs/challenge/caesar-advanced.md
-  - docs/superpowers/specs/2026-03-16-codemirror-autocomplete-design.md
 tests:
   - .vitepress/theme/__tests__/pythonCompletions.spec.ts
   - .vitepress/theme/__tests__/CodeEditor.spec.ts
@@ -89,16 +87,12 @@ Function entries in the stdlib list SHALL have an `apply` field ending with `(` 
 source: codemirror-autocomplete
 updated: 2026-03-16
 code:
-  - docs/challenge/caesar-03.md
   - docs/challenge/caesar-basic.md
-  - docs/challenge/caesar-02.md
-  - .vitepress/theme/components/editor/CodeEditor.vue
+  - docs/challenge/caesar-advanced.md
   - docs/challenge/caesar-custom-table.md
-  - docs/challenge/caesar-01.md
+  - .vitepress/theme/components/editor/CodeEditor.vue
   - .vitepress/theme/composables/pythonCompletions.ts
   - package.json
-  - docs/challenge/caesar-advanced.md
-  - docs/superpowers/specs/2026-03-16-codemirror-autocomplete-design.md
 tests:
   - .vitepress/theme/__tests__/pythonCompletions.spec.ts
   - .vitepress/theme/__tests__/CodeEditor.spec.ts
@@ -118,16 +112,12 @@ The completion dropdown SHALL activate automatically after each keystroke withou
 source: codemirror-autocomplete
 updated: 2026-03-16
 code:
-  - docs/challenge/caesar-03.md
   - docs/challenge/caesar-basic.md
-  - docs/challenge/caesar-02.md
-  - .vitepress/theme/components/editor/CodeEditor.vue
+  - docs/challenge/caesar-advanced.md
   - docs/challenge/caesar-custom-table.md
-  - docs/challenge/caesar-01.md
+  - .vitepress/theme/components/editor/CodeEditor.vue
   - .vitepress/theme/composables/pythonCompletions.ts
   - package.json
-  - docs/challenge/caesar-advanced.md
-  - docs/superpowers/specs/2026-03-16-codemirror-autocomplete-design.md
 tests:
   - .vitepress/theme/__tests__/pythonCompletions.spec.ts
   - .vitepress/theme/__tests__/CodeEditor.spec.ts
@@ -167,16 +157,12 @@ The editor SHALL automatically insert the closing counterpart when the user type
 source: codemirror-autocomplete
 updated: 2026-03-16
 code:
-  - docs/challenge/caesar-03.md
   - docs/challenge/caesar-basic.md
-  - docs/challenge/caesar-02.md
-  - .vitepress/theme/components/editor/CodeEditor.vue
+  - docs/challenge/caesar-advanced.md
   - docs/challenge/caesar-custom-table.md
-  - docs/challenge/caesar-01.md
+  - .vitepress/theme/components/editor/CodeEditor.vue
   - .vitepress/theme/composables/pythonCompletions.ts
   - package.json
-  - docs/challenge/caesar-advanced.md
-  - docs/superpowers/specs/2026-03-16-codemirror-autocomplete-design.md
 tests:
   - .vitepress/theme/__tests__/pythonCompletions.spec.ts
   - .vitepress/theme/__tests__/CodeEditor.spec.ts
@@ -203,16 +189,12 @@ The stdlib completion list SHALL NOT include `os` or `sys` module entries.
 source: codemirror-autocomplete
 updated: 2026-03-16
 code:
-  - docs/challenge/caesar-03.md
   - docs/challenge/caesar-basic.md
-  - docs/challenge/caesar-02.md
-  - .vitepress/theme/components/editor/CodeEditor.vue
+  - docs/challenge/caesar-advanced.md
   - docs/challenge/caesar-custom-table.md
-  - docs/challenge/caesar-01.md
+  - .vitepress/theme/components/editor/CodeEditor.vue
   - .vitepress/theme/composables/pythonCompletions.ts
   - package.json
-  - docs/challenge/caesar-advanced.md
-  - docs/superpowers/specs/2026-03-16-codemirror-autocomplete-design.md
 tests:
   - .vitepress/theme/__tests__/pythonCompletions.spec.ts
   - .vitepress/theme/__tests__/CodeEditor.spec.ts

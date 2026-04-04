@@ -1,3 +1,9 @@
+# pyodide-sandbox-guard Specification
+
+## Purpose
+
+Defines the Python execution sandbox that blocks user code from importing Pyodide's JavaScript bridge modules (`js`, `pyodide_js`, `pyodide`), clears pre-existing module references from `sys.modules`, and ensures the guard is injected before every user code execution without interfering with standard library imports.
+
 ## ADDED Requirements
 
 ### Requirement: User Python code cannot import js proxy modules

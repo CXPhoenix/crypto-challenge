@@ -71,9 +71,11 @@ GitHub 倉庫：<https://github.com/CXPhoenix/crypto-challenge>
 - [Node.js](https://nodejs.org) 22+
 - [pnpm](https://pnpm.io) 10+
 - [Rust](https://rustup.rs) 工具鏈 + wasm-pack
+- [Python](https://www.python.org) 3.10+（用於 pool generation 的 YAML 解析與加密題目產生器）
 
 ```bash
 cargo install wasm-pack
+pip install -r requirements.txt
 ```
 
 ### 安裝
@@ -116,9 +118,10 @@ pnpm test           # 執行 Vitest（140 個測試 / 19 個測試檔）
 專案已配置 GitHub Actions workflow，當推送版本標籤（`v*`）或發佈 Release 時，自動執行：
 
 1. 安裝 Rust 工具鏈與 wasm-pack
-2. 安裝 Node.js 22 與 pnpm
-3. 執行完整建置（`pnpm build`）
-4. 將 `.vitepress/dist/` 打包為 `.tar.gz` 與 `.zip`，上傳至 GitHub Release assets
+2. 安裝 Python 3.12 並透過 `pip install -r requirements.txt` 安裝 PyYAML 與 pycryptodome
+3. 安裝 Node.js 22 與 pnpm
+4. 執行完整建置（`pnpm build`）
+5. 將 `.vitepress/dist/` 打包為 `.tar.gz` 與 `.zip`，上傳至 GitHub Release assets
 
 ### 部署至靜態 Hosting
 

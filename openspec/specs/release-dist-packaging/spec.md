@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'github-release-dist-packaging'. Update Purpose after archive.
+Defines the GitHub Actions workflow that builds the VitePress site, packages the dist output into `.tar.gz` and `.zip` archives, and uploads them as downloadable assets to GitHub Releases on tag push or release publish.
 
 ## Requirements
 
@@ -35,26 +35,60 @@ code:
 ### Requirement: Full project build in CI
 
 The workflow SHALL install Rust stable toolchain and wasm-pack.
+The workflow SHALL install Python 3 using `actions/setup-python@v5` and install Python dependencies from `requirements.txt` using `pip install -r requirements.txt`.
 The workflow SHALL install Node.js and pnpm (version from `packageManager` field in `package.json`).
 The workflow SHALL run `pnpm install` to install dependencies.
-The workflow SHALL run `pnpm build` to execute the full build pipeline (WASM + VitePress).
+The workflow SHALL run `pnpm build` to execute the full build pipeline (WASM + pools + VitePress).
+
+The Python setup step SHALL be placed before `pnpm build` so that the pool generation subprocess has access to all required Python packages.
 
 #### Scenario: Successful build
 
 - **WHEN** the workflow executes the build step
-- **THEN** the `.vitepress/dist/` directory SHALL contain the complete built site including WASM files under `wasm/`
+- **THEN** the `.vitepress/dist/` directory SHALL contain the complete built site including WASM files under `wasm/` and encrypted pool files under `pools/`
 
 #### Scenario: Build failure
 
 - **WHEN** any build step fails
 - **THEN** the workflow SHALL fail and SHALL NOT upload any assets to the release
 
+#### Scenario: Python environment is ready before build
+
+- **WHEN** the `pnpm build` step executes
+- **THEN** `python3` SHALL be available on `PATH` with `PyYAML` and `pycryptodome` importable
+
+#### Scenario: Pool generation succeeds in CI
+
+- **WHEN** the build step runs `pnpm build` which triggers `build:pools`
+- **THEN** the pool generation subprocess SHALL find all required Python packages and generate encrypted pool files without import errors
+
 
 <!-- @trace
-source: github-release-dist-packaging
-updated: 2026-03-24
+source: declare-release-python-toolchain
+updated: 2026-04-04
 code:
+  - .vitepress/plugins/strip-generator.ts
+  - .vitepress/theme/components/editor/CodeEditor.vue
+  - requirements.txt
+  - testcase-generator/src/judge.rs
+  - .vitepress/theme/composables/useRemoteChallenge.ts
+  - testcase-generator/src/pool.rs
+  - .vitepress/theme/views/ChallengeView.vue
+  - scripts/generate-pools.ts
+  - scripts/generate-key-material.ts
+  - testcase-generator/src/lib.rs
+  - package.json
+  - tsconfig.node.json
   - .github/workflows/release.yml
+  - README.md
+  - tsconfig.app.json
+  - .vitepress/theme/workers/pyodide.worker.ts
+  - .vitepress/theme/composables/useChallengeRunner.ts
+tests:
+  - .vitepress/theme/__tests__/ChallengeView-verdict-detail.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-dev.spec.ts
+  - .vitepress/theme/__tests__/useChallengeRunner-prod.spec.ts
+  - .vitepress/theme/__tests__/pyodide-worker-run-only.spec.ts
 -->
 
 ---

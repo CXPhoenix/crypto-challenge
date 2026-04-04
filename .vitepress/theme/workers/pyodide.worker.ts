@@ -64,6 +64,15 @@ export interface GenerateComplete {
   testcases: GenerateTestcase[]
 }
 
+/** Request to run code against multiple inputs in production mode (no comparison). */
+export interface RunOnlyRequest {
+  type: 'run_only'
+  code: string
+  inputs: string[]
+  /** Maximum Python bytecode operations per testcase. Default: 10_000_000 */
+  opLimit?: number
+}
+
 /** Request to execute code with stdin, returning raw stdout (no verdict comparison). */
 export interface ExecuteRequest {
   type: 'execute'
@@ -103,7 +112,7 @@ async function ensurePyodide(): Promise<void> {
 // ── Message handler ────────────────────────────────────────────────────────
 
 self.onmessage = async (
-  event: MessageEvent<RunRequest | ExecuteRequest | GenerateRequest | { type: 'preload' }>,
+  event: MessageEvent<RunRequest | RunOnlyRequest | ExecuteRequest | GenerateRequest | { type: 'preload' }>,
 ) => {
   const { type } = event.data
 
@@ -120,6 +129,11 @@ self.onmessage = async (
 
   if (type === 'execute') {
     await handleExecute(event.data as ExecuteRequest)
+    return
+  }
+
+  if (type === 'run_only') {
+    await handleRunOnly(event.data as RunOnlyRequest)
     return
   }
 
@@ -204,6 +218,51 @@ self.onmessage = async (
     total: testcases.length,
     passed,
   } satisfies WorkerOutMessage)
+}
+
+// ── Run-only handler (production mode, no comparison) ─────────────────────
+
+async function handleRunOnly(req: RunOnlyRequest): Promise<void> {
+  const { code, inputs, opLimit = DEFAULT_OP_LIMIT } = req
+
+  await ensurePyodide()
+
+  for (let i = 0; i < inputs.length; i++) {
+    const input = inputs[i]!
+    const startTime = performance.now()
+
+    try {
+      pyodide.globals.clear()
+    } catch {
+      // ignore
+    }
+
+    try {
+      const wrapped = buildWrappedCode(code, input, opLimit)
+      await pyodide.runPythonAsync(wrapped)
+
+      const stdout: string = pyodide.globals.get('_output') ?? ''
+
+      self.postMessage({
+        type: 'testcase_result',
+        index: i,
+        stdout,
+        elapsed_ms: performance.now() - startTime,
+      })
+    } catch (err: unknown) {
+      const errMsg = String(err)
+
+      self.postMessage({
+        type: 'testcase_result',
+        index: i,
+        stdout: '',
+        elapsed_ms: performance.now() - startTime,
+        error: errMsg,
+      })
+    }
+  }
+
+  self.postMessage({ type: 'run_complete' })
 }
 
 // ── Execute handler (pure execution, no verdict) ─────────────────────────
