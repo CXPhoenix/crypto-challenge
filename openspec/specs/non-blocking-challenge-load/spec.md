@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change 'lazy-testcase-gen-non-blocking-ui'. Update Purpose after archive.
+Ensures the challenge UI renders the problem panel and code editor immediately without blocking on testcase generation. The run button is disabled until testcases are ready, and in-progress Workers are terminated on component unmount to prevent stale callbacks.
 
 ## Requirements
 

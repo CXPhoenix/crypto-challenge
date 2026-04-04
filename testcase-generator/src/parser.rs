@@ -6,6 +6,7 @@ fn default_min_len() -> usize { 1 }
 fn default_max_len() -> usize { 255 }
 fn default_min_int() -> i64 { 0 }
 fn default_max_int() -> i64 { 100 }
+fn default_multiple_of() -> usize { 1 }
 fn default_count_min() -> usize { 1 }
 fn default_count_max() -> usize { 1 }
 fn default_separator() -> String { " ".to_string() }
@@ -51,6 +52,8 @@ pub enum ParamSpec {
         min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
+        #[serde(default = "default_multiple_of")]
+        multiple_of: usize,
         #[serde(default)]
         count: CountSpec,
     },
@@ -59,6 +62,8 @@ pub enum ParamSpec {
         min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
+        #[serde(default = "default_multiple_of")]
+        multiple_of: usize,
         #[serde(default)]
         count: CountSpec,
     },
@@ -67,6 +72,8 @@ pub enum ParamSpec {
         min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
+        #[serde(default = "default_multiple_of")]
+        multiple_of: usize,
         #[serde(default)]
         count: CountSpec,
     },
@@ -75,6 +82,8 @@ pub enum ParamSpec {
         min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
+        #[serde(default = "default_multiple_of")]
+        multiple_of: usize,
         #[serde(default)]
         count: CountSpec,
     },
@@ -83,9 +92,35 @@ pub enum ParamSpec {
         min_len: usize,
         #[serde(default = "default_max_len")]
         max_len: usize,
+        #[serde(default = "default_multiple_of")]
+        multiple_of: usize,
         #[serde(default)]
         count: CountSpec,
     },
+    Enum {
+        values: Vec<String>,
+        #[serde(default)]
+        count: CountSpec,
+    },
+    #[cfg(feature = "faker")]
+    Faker {
+        category: FakerCategory,
+        #[serde(default)]
+        count: CountSpec,
+    },
+}
+
+#[cfg(feature = "faker")]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum FakerCategory {
+    Name,
+    FirstName,
+    LastName,
+    Email,
+    Company,
+    City,
+    Country,
 }
 
 /// Ordered map of param_name → ParamSpec.
@@ -103,7 +138,18 @@ pub type Params = IndexMap<String, ParamSpec>;
 /// }
 /// ```
 pub fn parse_params(json_str: &str) -> Result<Params, String> {
-    serde_json::from_str(json_str).map_err(|e| format!("JSON parse error: {e}"))
+    let params: Params = serde_json::from_str(json_str)
+        .map_err(|e| format!("JSON parse error: {e}"))?;
+    for (name, spec) in &params {
+        if let ParamSpec::Enum { values, .. } = spec {
+            if values.is_empty() {
+                return Err(format!(
+                    "param '{name}': enum values must not be empty"
+                ));
+            }
+        }
+    }
+    Ok(params)
 }
 
 #[cfg(test)]
@@ -121,14 +167,14 @@ mod tests {
     fn parses_alpha_upper_param() {
         let json = r#"{"pt": {"type": "alpha_upper", "min_len": 5, "max_len": 12}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["pt"], ParamSpec::AlphaUpper { min_len: 5, max_len: 12, count: CountSpec::default() });
+        assert_eq!(params["pt"], ParamSpec::AlphaUpper { min_len: 5, max_len: 12, multiple_of: 1, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_hex_string_param() {
         let json = r#"{"k": {"type": "hex_string", "min_len": 32, "max_len": 32}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["k"], ParamSpec::HexString { min_len: 32, max_len: 32, count: CountSpec::default() });
+        assert_eq!(params["k"], ParamSpec::HexString { min_len: 32, max_len: 32, multiple_of: 1, count: CountSpec::default() });
     }
 
     #[test]
@@ -157,21 +203,21 @@ mod tests {
     fn parses_alpha_lower_param() {
         let json = r#"{"pt": {"type": "alpha_lower", "min_len": 3, "max_len": 8}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["pt"], ParamSpec::AlphaLower { min_len: 3, max_len: 8, count: CountSpec::default() });
+        assert_eq!(params["pt"], ParamSpec::AlphaLower { min_len: 3, max_len: 8, multiple_of: 1, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_alpha_mixed_param() {
         let json = r#"{"pt": {"type": "alpha_mixed", "min_len": 4, "max_len": 16}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["pt"], ParamSpec::AlphaMixed { min_len: 4, max_len: 16, count: CountSpec::default() });
+        assert_eq!(params["pt"], ParamSpec::AlphaMixed { min_len: 4, max_len: 16, multiple_of: 1, count: CountSpec::default() });
     }
 
     #[test]
     fn parses_printable_ascii_param() {
         let json = r#"{"msg": {"type": "printable_ascii", "min_len": 10, "max_len": 20}}"#;
         let params = parse_params(json).unwrap();
-        assert_eq!(params["msg"], ParamSpec::PrintableAscii { min_len: 10, max_len: 20, count: CountSpec::default() });
+        assert_eq!(params["msg"], ParamSpec::PrintableAscii { min_len: 10, max_len: 20, multiple_of: 1, count: CountSpec::default() });
     }
 
     #[test]
@@ -192,7 +238,7 @@ mod tests {
         let params = parse_params(json).unwrap();
         assert_eq!(
             params["pt"],
-            ParamSpec::AlphaUpper { min_len: 5, max_len: 10, count: CountSpec::default() }
+            ParamSpec::AlphaUpper { min_len: 5, max_len: 10, multiple_of: 1, count: CountSpec::default() }
         );
     }
 
@@ -202,7 +248,7 @@ mod tests {
         let params = parse_params(json).unwrap();
         assert_eq!(params.len(), 2);
         assert_eq!(params["a"], ParamSpec::Int { min: 1, max: 10, count: CountSpec::default() });
-        assert_eq!(params["b"], ParamSpec::AlphaLower { min_len: 3, max_len: 5, count: CountSpec::default() });
+        assert_eq!(params["b"], ParamSpec::AlphaLower { min_len: 3, max_len: 5, multiple_of: 1, count: CountSpec::default() });
     }
 
     #[test]
@@ -218,6 +264,34 @@ mod tests {
     }
 
     #[test]
+    fn parses_enum_param() {
+        let json = r#"{"mode": {"type": "enum", "values": ["ECB", "CBC"]}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["mode"], ParamSpec::Enum {
+            values: vec!["ECB".to_string(), "CBC".to_string()],
+            count: CountSpec::default(),
+        });
+    }
+
+    #[test]
+    fn enum_empty_values_returns_error() {
+        let json = r#"{"mode": {"type": "enum", "values": []}}"#;
+        let result = parse_params(json);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("enum values must not be empty"));
+    }
+
+    #[test]
+    fn parses_enum_param_with_count() {
+        let json = r#"{"mode": {"type": "enum", "values": ["A", "B", "C"], "count": {"min": 2, "max": 3, "separator": ","}}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["mode"], ParamSpec::Enum {
+            values: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            count: CountSpec { min: 2, max: 3, separator: ",".to_string() },
+        });
+    }
+
+    #[test]
     fn parses_count_spec_with_custom_separator() {
         let json = r#"{"n": {"type": "int", "min": 1, "max": 10, "count": {"min": 3, "max": 3, "separator": ","}}}"#;
         let params = parse_params(json).unwrap();
@@ -225,6 +299,51 @@ mod tests {
             min: 1,
             max: 10,
             count: CountSpec { min: 3, max: 3, separator: ",".to_string() },
+        });
+    }
+
+    #[test]
+    fn parses_multiple_of_field() {
+        let json = r#"{"pt": {"type": "hex_string", "min_len": 16, "max_len": 64, "multiple_of": 16}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["pt"], ParamSpec::HexString {
+            min_len: 16,
+            max_len: 64,
+            multiple_of: 16,
+            count: CountSpec::default(),
+        });
+    }
+
+    #[test]
+    fn multiple_of_defaults_to_one() {
+        let json = r#"{"pt": {"type": "hex_string", "min_len": 8, "max_len": 16}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["pt"], ParamSpec::HexString {
+            min_len: 8,
+            max_len: 16,
+            multiple_of: 1,
+            count: CountSpec::default(),
+        });
+    }
+
+    #[cfg(not(feature = "faker"))]
+    #[test]
+    fn faker_type_fails_without_feature() {
+        let json = r#"{"name": {"type": "faker", "category": "name"}}"#;
+        let result = parse_params(json);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("unknown variant"), "expected unknown variant error, got: {err}");
+    }
+
+    #[cfg(feature = "faker")]
+    #[test]
+    fn parses_faker_param_with_feature() {
+        let json = r#"{"name": {"type": "faker", "category": "name"}}"#;
+        let params = parse_params(json).unwrap();
+        assert_eq!(params["name"], ParamSpec::Faker {
+            category: FakerCategory::Name,
+            count: CountSpec::default(),
         });
     }
 }

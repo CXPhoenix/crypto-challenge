@@ -4,7 +4,8 @@
     "vitest.config.*",
     "eslint.config.*",
     "prettier.config.*",
-    ".vitepress/config.*"
+    ".vitepress/config.*",
+    ".vitepress/plugins/*.ts"
   ],
   "compilerOptions": {
     "composite": true,
@@ -12,6 +13,7 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   }
 }

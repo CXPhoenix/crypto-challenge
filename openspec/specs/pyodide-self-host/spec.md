@@ -1,3 +1,9 @@
+# pyodide-self-host Specification
+
+## Purpose
+
+Defines the self-hosting of the Pyodide runtime from the project's own origin instead of an external CDN. Includes a download script that provisions Pyodide files to `docs/public/pyodide/`, gitignore configuration, and build pipeline integration to ensure the runtime is available in all environments.
+
 ## ADDED Requirements
 
 ### Requirement: Pyodide runtime is loaded from local origin

@@ -6,13 +6,14 @@
 
 **一個在瀏覽器中執行的互動式密碼學程式設計挑戰平台**
 
-[![License](https://img.shields.io/github/license/CXPhoenix/cryptography-challenge)](./LICENSE)
+[![Version](https://img.shields.io/badge/version-v1.0.0-blue)](https://github.com/CXPhoenix/crypto-challenge)
+[![License](https://img.shields.io/badge/License-ECL--2.0-green)](./LICENSE)
 [![VitePress](https://img.shields.io/badge/VitePress-2.x_alpha-646cff?logo=vite)](https://vitepress.dev)
 [![Node](https://img.shields.io/badge/Node-22+-339933?logo=node.js)](https://nodejs.org)
 [![pnpm](https://img.shields.io/badge/pnpm-10-f69220?logo=pnpm)](https://pnpm.io)
-[![Vitest](https://img.shields.io/badge/Tests-43_passing-6e9f18?logo=vitest)](./vitepress/theme/__tests__)
+[![Vitest](https://img.shields.io/badge/Tests-140_passing-6e9f18?logo=vitest)](./.vitepress/theme/__tests__)
 
-[快速開始](#快速開始) ❖ [題目列表](#題目列表) ❖ [貢獻指南](#貢獻指南)
+[快速開始](#快速開始) ❖ [題目列表](#題目列表) ❖ [部署](#部署) ❖ [貢獻指南](#貢獻指南)
 
 </div>
 
@@ -25,6 +26,8 @@ Cryptography Challenge 是一個完全運行於瀏覽器端的密碼學程式設
 ```
 使用者撰寫 Python → Rust/WASM 產生測試輸入 → Pyodide 執行驗證 → 即時顯示結果
 ```
+
+GitHub 倉庫：<https://github.com/CXPhoenix/crypto-challenge>
 
 ## 功能特色
 
@@ -39,8 +42,13 @@ Cryptography Challenge 是一個完全運行於瀏覽器端的密碼學程式設
 | # | 演算法 | 操作 | 難度 |
 |---|--------|------|------|
 | 1 | 凱薩密碼 (Caesar) | 加密 | 🟢 簡單 |
-| 2 | 凱薩密碼轉換 | 加密 / 解密 | 🟡 中等 |
-| 3 | 自製密碼表的凱薩密碼 | 解密 | 🟢 簡單 |
+| 2 | 凱薩密碼轉換 (Caesar Advanced) | 加密 / 解密 | 🟡 中等 |
+| 3 | 自製密碼表的凱薩密碼解密 | 解密 | 🟢 簡單 |
+| 4 | 維吉尼亞密碼 (Vigenère) | 加密 | 🟡 中等 |
+| 5 | 柵欄密碼 (Rail Fence) | 加密 | 🟡 中等 |
+| 6 | 簡化 Enigma 機器 | 加密 | 🔴 困難 |
+| 7 | DES ECB/CBC 模式 | 加密 | 🟡 中等 |
+| 8 | RSA 基礎運算 | 加密 | 🟡 中等 |
 
 ## 技術架構
 
@@ -63,9 +71,11 @@ Cryptography Challenge 是一個完全運行於瀏覽器端的密碼學程式設
 - [Node.js](https://nodejs.org) 22+
 - [pnpm](https://pnpm.io) 10+
 - [Rust](https://rustup.rs) 工具鏈 + wasm-pack
+- [Python](https://www.python.org) 3.10+（用於 pool generation 的 YAML 解析與加密題目產生器）
 
 ```bash
 cargo install wasm-pack
+pip install -r requirements.txt
 ```
 
 ### 安裝
@@ -80,7 +90,10 @@ pnpm install
 pnpm dev
 ```
 
-啟動後開啟 `http://localhost:5173`。首次執行會自動編譯 Rust/WASM 模組。
+啟動後開啟 `http://localhost:5173`。首次執行會依序：
+
+1. **編譯 Rust/WASM 模組**（`pnpm build:wasm`）— 將 `testcase-generator/` 編譯為 WebAssembly，輸出至 `docs/public/wasm/`
+2. **下載 Pyodide 執行時期**（`pnpm build:pyodide`）— 從 jsDelivr CDN 下載 Pyodide v0.29.3 的五個核心檔案至 `docs/public/pyodide/`（已存在的檔案會自動跳過）
 
 > [!NOTE]
 > Pyodide 需要 `SharedArrayBuffer`，本地開發伺服器已自動設定 COOP / COEP 安全標頭。請使用 Chromium 系瀏覽器（Chrome / Edge）。
@@ -88,33 +101,81 @@ pnpm dev
 ### 建置
 
 ```bash
-pnpm build          # 建置完整靜態站（WASM + VitePress）
+pnpm build          # 建置完整靜態站（WASM + Pyodide + VitePress）
 pnpm docs:preview   # 預覽建置結果
 ```
 
 ### 測試
 
 ```bash
-pnpm test           # 執行 Vitest（43 個測試）
+pnpm test           # 執行 Vitest（140 個測試 / 19 個測試檔）
 ```
+
+## 部署
+
+### GitHub Actions Release
+
+專案已配置 GitHub Actions workflow，當推送版本標籤（`v*`）或發佈 Release 時，自動執行：
+
+1. 安裝 Rust 工具鏈與 wasm-pack
+2. 安裝 Python 3.12 並透過 `pip install -r requirements.txt` 安裝 PyYAML 與 pycryptodome
+3. 安裝 Node.js 22 與 pnpm
+4. 執行完整建置（`pnpm build`）
+5. 將 `.vitepress/dist/` 打包為 `.tar.gz` 與 `.zip`，上傳至 GitHub Release assets
+
+### 部署至靜態 Hosting
+
+建置產物（`.vitepress/dist/`）可部署至任何靜態 hosting（Cloudflare Pages、Netlify、Vercel、GitHub Pages 等），但**必須設定以下 HTTP 安全標頭**，否則 Pyodide 將無法運作：
+
+| Header | 值 |
+|--------|-----|
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Cross-Origin-Embedder-Policy` | `require-corp` |
+
+這兩個標頭是啟用 `SharedArrayBuffer` 的必要條件。各平台設定方式不同，請參閱對應平台的文件。
+
+此外，專案已在 `<meta>` 中配置 Content Security Policy（CSP），包含 `wasm-unsafe-eval` 以允許 WASM 執行。
+
+## 瀏覽器相容性
+
+本平台依賴 `SharedArrayBuffer` 與 WebAssembly，對瀏覽器有以下要求：
+
+| 瀏覽器 | 支援狀態 |
+|--------|---------|
+| Chrome 91+ | ✅ 完整支援 |
+| Edge 91+ | ✅ 完整支援 |
+| Firefox 79+ | ⚠️ 需伺服器正確設定 COOP/COEP 標頭 |
+| Safari 15.2+ | ⚠️ 部分支援，可能有相容性問題 |
+
+> [!IMPORTANT]
+> `SharedArrayBuffer` 僅在安全上下文（HTTPS 或 `localhost`）且伺服器回傳正確的 COOP/COEP 標頭時可用。**建議使用 Chrome 或 Edge** 以獲得最佳體驗。
 
 ## 專案結構
 
 ```
 cryptography-challenge/
 ├── .vitepress/
+│   ├── config.mts               # VitePress + Vite 設定
 │   └── theme/
-│       ├── components/        # UI 元件（編輯器、題目面板、挑戰卡片）
-│       ├── views/             # ChallengeView、ChallengeListView
-│       ├── stores/            # Pinia stores（challenge、executor）
-│       ├── composables/       # useWasm、useExecutor
-│       ├── workers/           # Pyodide Web Worker
-│       └── __tests__/         # Vitest 測試
+│       ├── components/
+│       │   ├── challenge/        # 題目面板、挑戰卡片
+│       │   ├── editor/           # CodeMirror 編輯器、執行按鈕、結果面板
+│       │   └── layout/           # SplitPane、AppHeader
+│       ├── views/                # ChallengeView、ChallengeListView
+│       ├── stores/               # Pinia stores（challenge、executor）
+│       ├── composables/          # useWasm、useExecutor
+│       ├── workers/              # Pyodide Web Worker
+│       └── __tests__/            # Vitest 測試（19 個檔案）
 ├── docs/
-│   ├── challenge/             # 題目 Markdown（每檔即一道題，含 frontmatter）
-│   ├── public/wasm/           # Rust/WASM 建置輸出（.gitignored）
-│   └── shared/                # VitePress data loader
-└── testcase-generator/        # Rust crate（產生隨機測試輸入）
+│   ├── index.md                  # 首頁（ChallengeListView）
+│   ├── challenge/                # 題目 Markdown（每檔即一道題，含 frontmatter）
+│   ├── public/
+│   │   ├── wasm/                 # Rust/WASM 建置輸出（.gitignored）
+│   │   └── pyodide/              # Pyodide 執行時期檔案（.gitignored）
+│   └── shared/                   # VitePress data loader
+├── testcase-generator/           # Rust crate（產生隨機測試輸入）
+└── scripts/
+    └── download-pyodide.sh       # Pyodide 下載腳本
 ```
 
 ## 貢獻指南
@@ -129,18 +190,33 @@ layout: challenge
 id: <number>
 title: <題目名稱>
 difficulty: easy | medium | hard
-tags: ["classical", "substitution", "encrypt"]
-algorithm: <snake_case_name>      # 對應 Rust 產生器邏輯
-testcase_count: 5
+tags: ["modern", "asymmetric", "math", "encrypt"]
+algorithm: <snake_case_name>        # 對應 Rust 產生器邏輯
+testcase_count: 8
 params:
-  plaintext:
-    type: alpha_upper
-    min_len: 5
-    max_len: 12
-  shift:
+  p:
     type: int
-    min: 1
-    max: 25
+    prime: true                     # 限定為質數
+    min: 10
+    max: 97
+  key:
+    type: hex                       # 十六進位字串
+    len: 16                         # 固定長度
+  plaintext:
+    type: hex
+    min_len: 16
+    max_len: 64
+    multiple_of: 16                 # 長度須為指定值的倍數
+  mode:
+    type: string
+    values: ["ECB", "CBC"]          # 限定可選值
+  m:
+    type: int
+    less_than: n                    # 參照其他參數的值
+  keyword:
+    type: alpha_upper               # 大寫英文字母
+    min_len: 3
+    max_len: 8
 generator: |
   # Python 正確解答（用於產生預期輸出，不對使用者顯示）
 starter_code: |
@@ -148,7 +224,9 @@ starter_code: |
 ---
 ```
 
-`params` 規格由 `testcase-generator`（Rust/WASM）解析並隨機產生輸入，再由 Pyodide 執行 `generator` 產生對應的預期輸出。
+`params` 支援的 `type` 包括：`int`、`alpha_upper`、`alpha_lower`、`printable_ascii`、`hex`、`string`。各 type 可搭配不同的約束條件（`min`/`max`、`min_len`/`max_len`、`len`、`prime`、`multiple_of`、`values`、`less_than`）。
+
+規格由 `testcase-generator`（Rust/WASM）解析並隨機產生輸入，再由 Pyodide 執行 `generator` 產生對應的預期輸出。
 
 ### 提交 Pull Request
 
@@ -159,4 +237,4 @@ starter_code: |
 
 ## 授權
 
-本專案採用 [LICENSE](./LICENSE) 授權條款。
+本專案採用 [Educational Community License, Version 2.0 (ECL-2.0)](./LICENSE) 授權條款。

@@ -1,8 +1,8 @@
 # Spec: challenge-dual-theme
 
-## Overview
+## Purpose
 
-This spec defines the dual-theme (dark/light mode) requirements for the Cryptography Challenge site. Dark mode follows a Matrix Terminal aesthetic; light mode follows a SOC/SIEM aesthetic. Theme state is controlled by VitePress and persisted to localStorage.
+Defines the dual-theme (dark/light mode) requirements for the Cryptography Challenge site. Dark mode follows a Matrix Terminal aesthetic; light mode follows a SOC/SIEM aesthetic. Theme state is controlled by VitePress and persisted to localStorage.
 
 ---
 

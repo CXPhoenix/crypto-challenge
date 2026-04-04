@@ -2,8 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useData, useRouter } from 'vitepress'
 import { useChallengeStore } from '../stores/challenge'
-import { useWasm } from '../composables/useWasm'
-import { useExecutor } from '../composables/useExecutor'
+import { useChallengeRunner, resolveVerdictDetail } from '../composables/useChallengeRunner'
 import SplitPane from '../components/layout/SplitPane.vue'
 import AppHeader from '../components/layout/AppHeader.vue'
 import ProblemPanel from '../components/challenge/ProblemPanel.vue'
@@ -12,42 +11,37 @@ import RunButton from '../components/editor/RunButton.vue'
 import RunModal from '../components/editor/RunModal.vue'
 import TestResultPanel from '../components/editor/TestResultPanel.vue'
 import { useExecutorStore } from '../stores/executor'
-import type { GenerateRequest, GenerateComplete, VerdictDetail } from '../workers/pyodide.worker'
 
 const { frontmatter } = useData()
 const router = useRouter()
 const challengeStore = useChallengeStore()
 const executorStore = useExecutorStore()
-const { generateChallenge } = useWasm()
-const { isRunning, run, stop } = useExecutor()
 
 const code = ref('')
-const errorMessage = ref('')
-const isTestcaseReady = ref(false)
 const isRunModalOpen = ref(false)
 
-// Verdict detail: controls what expected/actual info is exposed
-const VALID_VERDICT_DETAILS = new Set<VerdictDetail>(['hidden', 'actual', 'full'])
-const rawVerdictDetail: string = frontmatter.value.verdict_detail ?? 'hidden'
-const verdictDetail: VerdictDetail = VALID_VERDICT_DETAILS.has(rawVerdictDetail as VerdictDetail)
-  ? (rawVerdictDetail as VerdictDetail)
-  : 'hidden'
+// Build config from frontmatter
+const verdictDetail = resolveVerdictDetail(frontmatter.value.verdict_detail)
+const algorithm: string = frontmatter.value.algorithm ?? ''
+const starterCode: string = frontmatter.value.starter_code ?? ''
 
-// Full testcases (with expected_output) kept in component-local variable,
-// never stored in Pinia when verdictDetail is not 'full'
-let localTestcases: Array<{ input: string; expected_output: string }> = []
+const runner = useChallengeRunner({
+  algorithm,
+  params: frontmatter.value.params ?? {},
+  generator: frontmatter.value.generator ?? '',
+  testcaseCount: frontmatter.value.testcase_count ?? 5,
+  starterCode,
+  verdictDetail,
+})
 
 const defaultStdin = computed(() => {
   const challenge = challengeStore.currentChallenge
   return challenge?.testcases[0]?.input ?? ''
 })
 
-// Track the in-progress generator worker so we can terminate on unmount
-let activeWorker: Worker | null = null
-
 // ── Bottom panel resizable height ──────────────────────────────────────────
 const MIN_BOTTOM_HEIGHT = 80
-const DEFAULT_BOTTOM_HEIGHT = 224 // ≈ 14rem
+const DEFAULT_BOTTOM_HEIGHT = 224
 
 const bottomHeight = ref(DEFAULT_BOTTOM_HEIGHT)
 const rightContainerHeight = ref(0)
@@ -76,7 +70,6 @@ function startDrag(e: MouseEvent) {
 
 function onMouseMove(e: MouseEvent) {
   if (!dragging.value) return
-  // Dragging up (negative delta) → increase bottom panel height
   const delta = dragStartY - e.clientY
   bottomHeight.value = dragStartHeight + delta
 }
@@ -96,114 +89,31 @@ onMounted(() => {
     ro.observe(rightContainerRef.value)
   }
 
-  const algorithm: string = frontmatter.value.algorithm ?? ''
-  const testcaseCount: number = frontmatter.value.testcase_count ?? 5
-  const generatorCode: string = frontmatter.value.generator ?? ''
-  const starterCode: string = frontmatter.value.starter_code ?? ''
-  const params = frontmatter.value.params ?? {}
-
   executorStore.setActiveChallenge(algorithm)
   code.value = starterCode
 
-  if (!generatorCode) {
-    errorMessage.value = 'generator 程式碼未設定，請在 frontmatter 中加入 generator 欄位'
-    return
-  }
-
-  // Fire-and-forget: generate testcases in background without blocking UI
-  ;(async () => {
-    // Phase 1: WASM generates random inputs
-    const paramsJson = JSON.stringify(params)
-    const generated = await generateChallenge(paramsJson, testcaseCount)
-
-    if (!generated) {
-      errorMessage.value = 'WASM 生成失敗，請確認 params 格式正確'
-      return
-    }
-
-    // Phase 2: Pyodide Worker runs generator code to produce expected outputs
-    const testcases = await runGenerator(generatorCode, generated.inputs)
-
-    if (testcases === null) {
-      errorMessage.value = 'Generator 執行失敗，請確認 generator 程式碼正確'
-      return
-    }
-
-    // Keep full testcases in component-local variable for Worker submission
-    localTestcases = testcases
-
-    // Store data stripping: only expose expected_output to store when verdict_detail is 'full'
-    const storeTestcases = verdictDetail === 'full'
-      ? testcases
-      : testcases.map((tc) => ({ input: tc.input }))
-    challengeStore.setCurrentChallenge({ starter_code: starterCode, testcases: storeTestcases })
-    isTestcaseReady.value = true
-  })()
+  // Fire-and-forget: load testcases in background
+  runner.loadTestcases()
 })
 
 onUnmounted(() => {
-  if (activeWorker) {
-    activeWorker.terminate()
-    activeWorker = null
-  }
-  isTestcaseReady.value = false
+  runner.cleanup()
   ro?.disconnect()
   ro = null
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', stopDrag)
 })
 
-/**
- * Spawn a fresh Worker, send a generate message, and await generate_complete.
- * Returns null if the Worker failed to respond or was terminated.
- */
-function runGenerator(
-  generatorCode: string,
-  inputs: string[],
-): Promise<Array<{ input: string; expected_output: string }> | null> {
-  return new Promise((resolve) => {
-    const worker = new Worker(new URL('../workers/pyodide.worker.ts', import.meta.url), {
-      type: 'module',
-    })
-    activeWorker = worker
-
-    worker.onmessage = (event: MessageEvent<GenerateComplete>) => {
-      if (event.data.type === 'generate_complete') {
-        activeWorker = null
-        worker.terminate()
-        // Filter out entries with errors; log them for debugging
-        const testcases = event.data.testcases.map((tc) => {
-          if (tc.error) {
-            console.error('[generator] error for input:', tc.input, tc.error)
-          }
-          return { input: tc.input, expected_output: tc.expected_output }
-        })
-        resolve(testcases)
-      }
-    }
-
-    worker.onerror = () => {
-      activeWorker = null
-      worker.terminate()
-      resolve(null)
-    }
-
-    const req: GenerateRequest = { type: 'generate', generatorCode, inputs }
-    worker.postMessage(req)
-  })
-}
-
 async function handleSubmit() {
-  if (!localTestcases.length) return
-  await run(code.value, localTestcases, verdictDetail)
+  await runner.submit(code.value)
 }
 </script>
 
 <template>
   <div class="h-screen flex flex-col bg-slate-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 overflow-hidden">
-    <div v-if="errorMessage" class="flex items-center justify-center h-full">
+    <div v-if="runner.errorMessage.value" class="flex items-center justify-center h-full">
       <div class="text-center">
-        <p class="text-xl text-red-500 dark:text-red-400 mb-4">{{ errorMessage }}</p>
+        <p class="text-xl text-red-500 dark:text-red-400 mb-4">{{ runner.errorMessage.value }}</p>
         <button class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-gray-800 dark:hover:bg-gray-700 rounded" @click="router.go('/')">
           返回列表
         </button>
@@ -252,18 +162,18 @@ async function handleSubmit() {
                   </button>
                   <!-- Submit button: disabled until testcases ready -->
                   <RunButton
-                    :is-running="isRunning"
-                    :is-ready="isTestcaseReady"
+                    :is-running="runner.isRunning.value"
+                    :is-ready="runner.isReady.value"
                     :progress="executorStore.results.length"
                     :total="executorStore.totalTestcases"
                     @run="handleSubmit"
-                    @stop="stop"
+                    @stop="runner.stop"
                   />
                   <span v-if="executorStore.status === 'done'" class="text-sm text-slate-500 dark:text-gray-400">
                     得分：{{ executorStore.passed }} / {{ executorStore.total }}
                   </span>
                 </div>
-                <TestResultPanel :results="executorStore.results" :status="executorStore.status" :verdict-detail="verdictDetail" />
+                <TestResultPanel :results="executorStore.results" :status="executorStore.status" :verdict-detail="runner.verdictDetail.value" />
               </div>
             </div>
           </template>

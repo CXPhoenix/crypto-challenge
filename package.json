@@ -11,8 +11,10 @@
     "format": "prettier --write --experimental-cli .vitepress/",
     "build:wasm": "wasm-pack build testcase-generator --target web --out-dir ../docs/public/wasm",
     "build:pyodide": "bash scripts/download-pyodide.sh",
+    "build:pools": "npx tsx scripts/generate-pools.ts",
     "dev": "pnpm build:wasm && pnpm build:pyodide && pnpm docs:dev",
-    "build": "pnpm build:wasm && pnpm build:pyodide && pnpm docs:build"
+    "build": "pnpm build:pools && pnpm build:wasm && pnpm build:pyodide && pnpm docs:build",
+    "typecheck": "vue-tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

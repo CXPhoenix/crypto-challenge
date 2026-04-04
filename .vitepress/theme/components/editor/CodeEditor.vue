@@ -28,7 +28,7 @@ onMounted(async () => {
     { python, pythonLanguage },
     { oneDark },
     { EditorState },
-    { autocompletion, closeBrackets, closeBracketsKeymap, localCompletionSource },
+    { autocompletion, closeBrackets, closeBracketsKeymap },
   ] = await Promise.all([
     import('@codemirror/view'),
     import('@codemirror/commands'),
@@ -52,10 +52,9 @@ onMounted(async () => {
         rectangularSelection(),
         EditorState.tabSize.of(4),
         python(),
-        pythonLanguage.data.of({ autocomplete: localCompletionSource }),
         pythonLanguage.data.of({ autocomplete: pythonStdlibCompletions() }),
         autocompletion(),
-        closeBrackets({ brackets: ['(', '[', '{'] }),
+        closeBrackets(),
         keymap.of([...closeBracketsKeymap, indentWithTab, ...defaultKeymap, ...historyKeymap]),
         oneDark,
         EditorView.updateListener.of((update) => {
