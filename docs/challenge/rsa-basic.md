@@ -14,13 +14,26 @@ params:
     max: 999999
 generator: |
   import random, math, json
-  primes = [11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
-  p = random.choice(primes)
-  q = random.choice(primes)
+  def get_primes(scope, min = 2):
+    primes = [n for n in range(scope+1)]
+    primes[0] = -1
+    primes[1] = -1
+    for idx in range(2, len(primes)):
+      if primes[idx] == -1:
+        continue
+      for i in range(idx*2, scope+1, idx):
+        primes[i] = -1
+    primes = primes[min:]
+    return list(filter(lambda p: p != -1, primes))
+  primes = get_primes(2**16)
+  p = random.choice(range(len(primes)//3 * 2, len(primes)))
+  p = primes.pop(p)
+  q = random.choice(range(len(primes)//3 * 2, len(primes)))
+  q = primes.pop(q)
   n = p * q
   phi = (p - 1) * (q - 1)
   while True:
-      e = random.randint(2, phi - 1)
+      e = random.randint(2, phi//2 - 1)
       if math.gcd(e, phi) == 1:
           break
   m = random.randint(0, n - 1)
