@@ -28,14 +28,14 @@ generator: |
           if ch not in seen:
               key_chars.append(ch)
       return [key_chars[i * 5 : i * 5 + 5] for i in range(5)]
-
+  #
   def find_position(matrix, ch):
       for r, row in enumerate(matrix):
           for c, val in enumerate(row):
               if val == ch:
                   return r, c
       raise ValueError(f"Character {ch} not found in matrix")
-
+  #
   def prepare_text(plaintext: str):
       text = plaintext.upper().replace("J", "I")
       text = "".join(ch for ch in text if ch.isalpha())
@@ -55,7 +55,7 @@ generator: |
               pairs.append((a, "X"))
               i += 1
       return pairs
-
+  #
   def encrypt(keyword: str, plaintext: str):
       matrix = generate_matrix(keyword)
       pairs = prepare_text(plaintext)
@@ -73,7 +73,7 @@ generator: |
               result.append(matrix[r1][c2])
               result.append(matrix[r2][c1])
       return "".join(result)
-  
+  #
   keyword = input()
   plaintext = input()
   print(encrypt(keyword, plaintext))
