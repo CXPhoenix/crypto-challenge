@@ -1,6 +1,6 @@
 ---
 layout: challenge
-id: 5
+id: 6
 title: 柵欄密碼
 difficulty: medium
 tags: ["classical", "transposition", "encrypt"]

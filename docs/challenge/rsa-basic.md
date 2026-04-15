@@ -1,6 +1,6 @@
 ---
 layout: challenge
-id: 8
+id: 9
 title: RSA 基礎運算
 difficulty: medium
 tags: ["modern", "asymmetric", "math", "encrypt"]
@@ -14,13 +14,26 @@ params:
     max: 999999
 generator: |
   import random, math, json
-  primes = [11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97]
-  p = random.choice(primes)
-  q = random.choice(primes)
+  def get_primes(scope, min = 2):
+    primes = [n for n in range(scope+1)]
+    primes[0] = -1
+    primes[1] = -1
+    for idx in range(2, len(primes)):
+      if primes[idx] == -1:
+        continue
+      for i in range(idx*2, scope+1, idx):
+        primes[i] = -1
+    primes = primes[min:]
+    return list(filter(lambda p: p != -1, primes))
+  primes = get_primes(2**16)
+  p = random.choice(range(len(primes)//3 * 2, len(primes)))
+  p = primes.pop(p)
+  q = random.choice(range(len(primes)//3 * 2, len(primes)))
+  q = primes.pop(q)
   n = p * q
   phi = (p - 1) * (q - 1)
   while True:
-      e = random.randint(2, phi - 1)
+      e = random.randint(2, phi//2 - 1)
       if math.gcd(e, phi) == 1:
           break
   m = random.randint(0, n - 1)
@@ -47,6 +60,8 @@ RSA 演算法步驟：
 2. 計算 `phi = (p-1) * (q-1)`（歐拉函數）
 3. 計算 `d`，使得 `d * e ≡ 1 (mod phi)`（私鑰指數，即 e 對 phi 的模反元素）
 4. 計算密文 `c = m^e mod n`
+
+給定兩質數 `p` 和 `q` ，以及密鑰 `e`，請你將明文 `m` 加密變成 `c`。
 
 ## 輸入說明
 
