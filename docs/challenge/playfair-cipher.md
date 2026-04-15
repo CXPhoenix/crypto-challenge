@@ -16,7 +16,7 @@ params:
     min_len: 8
     max_len: 30
 generator: |
-  def generate_matrix(keyword: str) -> list[list[str]]:
+  def generate_matrix(keyword: str):
       keyword = keyword.upper().replace("J", "I")
       seen = set()
       key_chars = []
@@ -29,14 +29,14 @@ generator: |
               key_chars.append(ch)
       return [key_chars[i * 5 : i * 5 + 5] for i in range(5)]
 
-  def find_position(matrix: list[list[str]], ch: str) -> tuple[int, int]:
+  def find_position(matrix, ch):
       for r, row in enumerate(matrix):
           for c, val in enumerate(row):
               if val == ch:
                   return r, c
       raise ValueError(f"Character {ch} not found in matrix")
 
-  def prepare_text(plaintext: str) -> list[tuple[str, str]]:
+  def prepare_text(plaintext: str):
       text = plaintext.upper().replace("J", "I")
       text = "".join(ch for ch in text if ch.isalpha())
       pairs = []
@@ -56,7 +56,7 @@ generator: |
               i += 1
       return pairs
 
-  def encrypt(keyword: str, plaintext: str) -> str:
+  def encrypt(keyword: str, plaintext: str):
       matrix = generate_matrix(keyword)
       pairs = prepare_text(plaintext)
       result = []
