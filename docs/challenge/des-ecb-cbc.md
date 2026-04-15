@@ -1,6 +1,6 @@
 ---
 layout: challenge
-id: 7
+id: 8
 title: DES ECB/CBC 模式
 difficulty: medium
 tags: ["modern", "symmetric", "block-cipher", "encrypt"]

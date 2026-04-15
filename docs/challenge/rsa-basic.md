@@ -1,6 +1,6 @@
 ---
 layout: challenge
-id: 8
+id: 9
 title: RSA 基礎運算
 difficulty: medium
 tags: ["modern", "asymmetric", "math", "encrypt"]

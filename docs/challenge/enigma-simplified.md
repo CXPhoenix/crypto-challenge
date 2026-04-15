@@ -1,6 +1,6 @@
 ---
 layout: challenge
-id: 6
+id: 7
 title: 簡化 Enigma 機器
 difficulty: hard
 tags: ["classical", "machine", "polyalphabetic", "encrypt"]
